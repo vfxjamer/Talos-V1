@@ -9,23 +9,26 @@ Train Talos v1 (Rocket League 1v1 RL bot) to **200B steps** using **4 Kaggle Fre
 - Each session: ~9h (Kaggle limit)
 
 ## Status (June 4, 2026)
-### Done
-- All source changes implemented and **compiled clean** (0 errors, 0 warnings):
-  - **PhaseManager**: 4-phase gamma/entropy schedule, 512×6 network, epochs=15, LR=1e-4, miniBatch=10K, same Necto rewards across all phases
-  - **main.cpp**: CLI args (--resume, --device, --games, --save-dir, --phase, --replays), SIGTERM handler (Save+exit), correct Necto reward wiring (no vel_ball_to_goal)
-  - **TalosRewards.cpp**: GoalSpeedBonusReward fires only on goals; GoalDistBonusReward inverted-scoring bug fixed (uses `RS_TEAM_FROM_Y`)
-  - **TalosOBS**: +3 scoreboard features (goal_diff, time_left, overtime), Reset() override
-  - **TalosStateSetter**: Binary replay loader with height-weighted sampling, 70% replay / 30% procedural
-- Created `Kaggle/` with: TRAINING_PLAN.md, run_talos.ipynb, package_dataset.sh, parse_replays.py
-- Local git repo initialized at `Talos v1/`
-- GitHub repo **vfxjamer/Talos-V1** exists (private)
-- Collision meshes symlink fixed (copied from render build output)
 
-### Pending
-- **GitHub push blocked**: fine-grained PAT (`github_pat_...`) doesn't have write access to the repo — needs a classic PAT with `repo` scope, or an updated fine-grained PAT with read/write permissions
-- **Notebook rewrite**: `Kaggle/run_talos.ipynb` still uses old Kaggle Dataset + Google Drive approach — needs to be rewritten for GitHub clone + checkpoint repo model
-- **Checkpoint repo**: needs to be created (e.g., `vfxjamer/Talos-Checkpoints` or branch on Talos-V1)
-- **Kaggle notebook deployment**: test full cycle on Kaggle Free
+### Done
+- **Source code**: All changes implemented and **compile clean** (0 errors, 0 warnings):
+  - PhaseManager: 4-phase gamma/entropy, 512×6 MLP, epochs=15, LR=1e-4, miniBatch=10K
+  - main.cpp: CLI args, SIGTERM handler, Necto reward wiring
+  - TalosRewards.cpp: GoalSpeedBonus (goals only), GoalDistBonus (fixed scoring logic)
+  - TalosOBS.cpp: +3 scoreboard features (goal_diff, time_left, overtime)
+  - TalosStateSetter.cpp: Binary replay loader with height-weighted sampling, 70/30 split
+- **Binary tested**: Runs locally, prints help, all CLI args functional
+- **GitHub source repo**: `vfxjamer/Talos-V1` (private) — latest commit `c57d286`
+- **Collision meshes**: Tracked in git (16 .cmf files, ~175KB) — removed from .gitignore
+- **Kaggle notebook**: `Kaggle/run_talos.ipynb` rewritten with:
+  - GitHub clone → build (cmake/g++ on Kaggle) → pull checkpoints → train → push checkpoints
+- **PAT**: Updated to classic PAT (`ghp_...`) with full `repo` scope — git push works
+- **Checkpoint repo**: `vfxjamer/talos-checkpoints` created (public, empty)
+
+### Remaining
+- **Replay files**: No .replay files found on this machine. User needs to provide them or download from ballchasing.com
+- **Kaggle Secrets**: User must set `GITHUB_PAT` as a Kaggle Secret on the notebook
+- **First Kaggle session**: Test full cycle: clone → build → train → push checkpoints
 
 ## Architecture
 
@@ -64,28 +67,32 @@ Train Talos v1 (Rocket League 1v1 RL bot) to **200B steps** using **4 Kaggle Fre
 | ~~team_spirit~~ | removed | No-op in 1v1 |
 
 ### Observations
-88 total features:
-- 85 standard RocketSim features
-- +3 scoreboard: goal_diff (clamped [-1,1]), time_left [0,1], is_overtime (binary)
+88 total features: 85 standard RocketSim + 3 scoreboard (goal_diff clamped [-1,1], time_left [0,1], is_overtime)
 
 ### State Initialization
-- **70% replay** → binary serialized frames from carball, height-weighted (aerial bias)
-- **30% procedural** → kickoff, ground, goalie, aerial, wall, dribble
+- 70% replay frames (binary, height-weighted aerial bias)
+- 30% procedural modes (kickoff, ground, goalie, aerial, wall, dribble)
 
-## Planned Session Workflow (to be implemented)
+## Session Workflow
 ```
-1. Clone Talos-V1 from GitHub (using PAT)
-2. Pull latest checkpoint from checkpoints repo
-3. Run binary: ./Talos --device cuda --games 20 --resume <ckpt_dir> --save-dir checkpoints
-4. Every 5M steps: auto-save → git push checkpoint to checkpoints repo
-5. Session end: final save → push to checkpoints repo
+1. Clone Talos-V1 from GitHub (PAT from Kaggle Secret)
+2. Install cmake/g++, download LibTorch, build binary
+3. Pull latest checkpoint from vfxjamer/talos-checkpoints
+4. Run: ./Talos --device cuda --games 20 --resume checkpoints --save-dir checkpoints
+5. Every checkpoint save → git push to talos-checkpoints
+6. Session end → final push
 ```
 
 ## Account Rotation
-- 4 × Kaggle Free accounts
-- Cycle N→N+1 when quota exhausted (30h/week)
-- All share same checkpoints via GitHub repo
-- By the time Account 4's 30h is spent, Account 1's quota resets
+- 4 × Kaggle Free accounts cycling
+- Each has 30h/week GPU quota
+- Checkpoints shared via `vfxjamer/talos-checkpoints` repo
+
+## Key Repositories
+| Repo | Purpose |
+|---|---|
+| `vfxjamer/Talos-V1` | Source code + build |
+| `vfxjamer/talos-checkpoints` | Training checkpoints (shared across accounts) |
 
 ## Key Files
 | File | Purpose |
@@ -95,10 +102,9 @@ Train Talos v1 (Rocket League 1v1 RL bot) to **200B steps** using **4 Kaggle Fre
 | `src/TalosRewards.cpp` | GoalSpeedBonus (goals only), GoalDistBonus (fixed) |
 | `src/TalosOBS.cpp` | +3 scoreboard features |
 | `src/TalosStateSetter.cpp` | Binary replay loader, 70/30 split |
-| `Kaggle/run_talos.ipynb` | Kaggle runner (NEEDS REWRITE) |
-| `scripts/parse_replays.py` | Carball → binary serialization |
-| `Kaggle/package_dataset.sh` | Dataset packager (may be replaced) |
+| `Kaggle/run_talos.ipynb` | Kaggle runner (clone → build → train → push) |
+| `collision_meshes/soccar/*.cmf` | RocketSim collision meshes (tracked in git) |
 
-## Credentials (in Kaggle/API/)
-- `GITHUB-API.txt` → PAT (needs write scope)
+## Credentials (Kaggle/API/ — gitignored)
+- `GITHUB-API.txt` → classic PAT with repo scope
 - `Kaggle acc-1.txt` → Kaggle API token
