@@ -29,10 +29,12 @@ else
 fi
 
 echo "═══ CUDA toolkit ═══"
-# Remove old CUDA 11.5 headers that conflict with 12.x
+# Remove old CUDA 11.5 that conflicts with 12.x
 apt-get remove -y -qq nvidia-cuda-toolkit libcudart-dev 2>/dev/null || true
 apt-get autoremove -y -qq 2>/dev/null || true
-rm -f /usr/include/cuda.h /usr/include/cuda_runtime.h /usr/include/cuda_runtime_api.h 2>/dev/null || true
+# Kill leftover nvcc wrapper that points to old CUDA
+rm -f /usr/bin/nvcc /usr/lib/nvidia-cuda-toolkit/bin/nvcc 2>/dev/null || true
+rm -f /usr/include/cuda.h /usr/include/cuda_runtime.h 2>/dev/null || true
 
 # Prefer our own CUDA 12.1 install (clean, no conflicts)
 if [ -d "/usr/local/cuda-12.1" ] && [ -f "/usr/local/cuda-12.1/bin/nvcc" ]; then
