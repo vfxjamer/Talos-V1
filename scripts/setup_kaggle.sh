@@ -36,39 +36,18 @@ apt-get autoremove -y -qq 2>/dev/null || true
 rm -f /usr/bin/nvcc /usr/lib/nvidia-cuda-toolkit/bin/nvcc 2>/dev/null || true
 rm -f /usr/include/cuda.h /usr/include/cuda_runtime.h 2>/dev/null || true
 
-# Prefer our own CUDA 12.1 install (clean, no conflicts)
-if [ -d "/usr/local/cuda-12.1" ] && [ -f "/usr/local/cuda-12.1/bin/nvcc" ]; then
-    CUDA_ROOT="/usr/local/cuda-12.1"
-    echo "Found CUDA 12.1 at $CUDA_ROOT"
-fi
-if [ -z "$CUDA_ROOT" ]; then
-    # Check if CUDA 12 already installed in standard Kaggle paths
-    for d in /usr/local/cuda-12 /usr/local/cuda /usr/lib/cuda-12; do
-        if [ -d "$d" ] && [ -f "$d/bin/nvcc" ]; then
-            VER=$("$d/bin/nvcc" --version 2>/dev/null | grep 'release' | grep -oP 'release \K[0-9.]+' || echo "0")
-            MAJOR=${VER%%.*}
-            if [ "$MAJOR" -ge 12 ]; then
-                CUDA_ROOT="$d"
-                echo "Found CUDA $VER at $d"
-            else
-                echo "Found CUDA $VER at $d (need 12.x)"
-            fi
-            break
-        fi
-    done
-fi
-if [ -z "$CUDA_ROOT" ]; then
-    # Check any nvcc in PATH
-    NVCC=$(command -v nvcc 2>/dev/null || true)
-    if [ -n "$NVCC" ]; then
-        VER=$(nvcc --version 2>/dev/null | grep 'release' | grep -oP 'release \K[0-9.]+' || echo "0")
+# Check CUDA in priority order (Kaggle's full install first)
+for d in /usr/local/cuda-12 /usr/local/cuda /usr/local/cuda-12.1 /usr/lib/cuda-12; do
+    if [ -d "$d" ] && [ -f "$d/bin/nvcc" ]; then
+        VER=$("$d/bin/nvcc" --version 2>/dev/null | grep 'release' | grep -oP 'release \K[0-9.]+' || echo "0")
         MAJOR=${VER%%.*}
         if [ "$MAJOR" -ge 12 ]; then
-            CUDA_ROOT=$(dirname "$(dirname "$NVCC")")
-            echo "Found nvcc (CUDA $VER) at $CUDA_ROOT"
+            CUDA_ROOT="$d"
+            echo "Found CUDA $VER at $d"
+            break
         fi
     fi
-fi
+done
 if [ -z "$CUDA_ROOT" ]; then
     echo "Installing CUDA 12.1 from NVIDIA..."
     apt-get install -y -qq wget 2>&1 | tail -3
@@ -76,8 +55,7 @@ if [ -z "$CUDA_ROOT" ]; then
         -O /tmp/cuda-keyring.deb
     dpkg -i /tmp/cuda-keyring.deb 2>&1 | tail -3
     apt-get update -qq 2>/dev/null || true
-    apt-get install -y -qq cuda-compiler-12-1 cuda-libraries-dev-12-1 \
-        cuda-nvtx-12-1 cuda-cublas-dev-12-1 2>&1 | tail -5
+    apt-get install -y -qq cuda-toolkit-12-1 2>&1 | tail -5
     CUDA_ROOT="/usr/local/cuda-12.1"
 fi
 if [ -n "$CUDA_ROOT" ]; then
