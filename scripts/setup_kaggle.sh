@@ -30,46 +30,51 @@ fi
 
 echo "═══ CUDA toolkit ═══"
 CUDA_ROOT=""
-for d in /usr/local/cuda* /usr/lib/cuda* /opt/cuda*; do
+# Check if CUDA 12 already installed (Kaggle's default or from prior install)
+for d in /usr/local/cuda-12* /usr/local/cuda /usr/lib/cuda-12*; do
     if [ -d "$d" ] && [ -f "$d/include/cuda.h" ]; then
         CUDA_ROOT="$d"
-        echo "Found CUDA at $d"
+        echo "Found CUDA 12 at $d"
         break
     fi
 done
+# Fallback: check nvcc version
 if [ -z "$CUDA_ROOT" ]; then
     NVCC=$(command -v nvcc 2>/dev/null || true)
     if [ -n "$NVCC" ]; then
-        CUDA_ROOT=$(dirname "$(dirname "$NVCC")")
-        echo "Found nvcc at $CUDA_ROOT"
-    fi
-fi
-if [ -z "$CUDA_ROOT" ]; then
-    echo "CUDA toolkit not found — installing nvidia-cuda-toolkit..."
-    apt-get install -y nvidia-cuda-toolkit 2>&1 | tail -10
-    for d in /usr/local/cuda* /usr/lib/cuda* /opt/cuda*; do
-        if [ -d "$d" ] && [ -f "$d/include/cuda.h" ]; then
-            CUDA_ROOT="$d"
-            echo "Found CUDA after install at $d"
-            break
-        fi
-    done
-    if [ -z "$CUDA_ROOT" ]; then
-        NVCC=$(command -v nvcc 2>/dev/null || true)
-        if [ -n "$NVCC" ]; then
+        VER=$(nvcc --version 2>/dev/null | grep 'release' | grep -oP 'release \K[0-9.]+' || echo "11.5")
+        MAJOR=${VER%%.*}
+        if [ "$MAJOR" -ge 12 ]; then
             CUDA_ROOT=$(dirname "$(dirname "$NVCC")")
-            echo "Found nvcc after install at $CUDA_ROOT"
+            echo "Found nvcc (CUDA $VER) at $CUDA_ROOT"
+        else
+            echo "Found nvcc CUDA $VER but need 12.x — will install CUDA 12.1"
         fi
     fi
 fi
 if [ -z "$CUDA_ROOT" ]; then
-    echo "WARNING: CUDA toolkit not found! cmake will likely fail."
-    echo "Searching more broadly..."
-    find / -name "cuda.h" -type f 2>/dev/null | head -5 || true
-else
+    echo "Installing CUDA 12.1 from NVIDIA..."
+    apt-get install -y -qq wget 2>&1 | tail -3
+    wget -q https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.0-1_all.deb \
+        -O /tmp/cuda-keyring.deb
+    dpkg -i /tmp/cuda-keyring.deb 2>&1 | tail -3
+    apt-get update -qq 2>/dev/null || true
+    apt-get install -y -qq cuda-compiler-12-1 cuda-libraries-12-1 cuda-cudart-dev-12-1 2>&1 | tail -5
+    CUDA_ROOT="/usr/local/cuda-12.1"
+    if [ ! -f "$CUDA_ROOT/include/cuda.h" ]; then
+        # Symlink not created yet
+        CUDA_ROOT="/usr/local/cuda-12.1"
+        ls "$CUDA_ROOT" 2>/dev/null || echo "CUDA 12.1 dir missing"
+    fi
+fi
+if [ -f "$CUDA_ROOT/include/cuda.h" ]; then
     export CUDA_TOOLKIT_ROOT_DIR="$CUDA_ROOT"
     export PATH="$CUDA_ROOT/bin:$PATH"
+    export CUDA_VISIBLE_DEVICES="0,1"
     echo "CUDA root: $CUDA_ROOT"
+    echo "nvcc: $(nvcc --version 2>&1 | grep release)"
+else
+    echo "WARNING: CUDA 12 toolkit not found!"
 fi
 
 echo "═══ cmake configure ═══"
