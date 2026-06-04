@@ -63,8 +63,30 @@ if [ -n "$CUDA_ROOT" ]; then
     find /usr/include -name 'cuda*' -delete 2>/dev/null || true
     find /usr/include -name 'nvtx*' -delete 2>/dev/null || true
     rm -rf /usr/include/crt 2>/dev/null || true
-    # Ensure extra CUDA dev packages (needed by LibTorch)
-    apt-get install -y -qq cuda-nvtx-12-1 cuda-cublas-dev-12-1 2>/dev/null | tail -3 || true
+    # NVIDIA repo keyring (needed for extra packages)
+    if [ ! -f /etc/apt/sources.list.d/cuda*.sources ] 2>/dev/null; then
+        apt-get install -y -qq wget 2>&1 | tail -1
+        wget -q https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.0-1_all.deb -O /tmp/cuda-keyring.deb
+        dpkg -i /tmp/cuda-keyring.deb 2>&1 | tail -1
+        apt-get update -qq 2>/dev/null || true
+    fi
+    # Install packages that LibTorch needs (nvtx, cublas)
+    apt-get install -y -qq cuda-nvtx-12-1 cuda-cublas-dev-12-1 2>&1 | tail -5 || true
+    # nvToolsExt.h may be at nvtx3/ symlink it if needed
+    if [ ! -f "$CUDA_ROOT/include/nvToolsExt.h" ]; then
+        NVTX_H=$(find "$CUDA_ROOT" -name "nvToolsExt.h" 2>/dev/null | head -1)
+        if [ -n "$NVTX_H" ]; then
+            ln -sf "$NVTX_H" "$CUDA_ROOT/include/nvToolsExt.h"
+            echo "Symlinked nvToolsExt.h"
+        else
+            # Search system wide
+            NVTX_H=$(find /usr/local -name "nvToolsExt.h" 2>/dev/null | head -1)
+            if [ -n "$NVTX_H" ]; then
+                ln -sf "$NVTX_H" "$CUDA_ROOT/include/nvToolsExt.h"
+                echo "Symlinked nvToolsExt.h from $NVTX_H"
+            fi
+        fi
+    fi
     export CUDA_TOOLKIT_ROOT_DIR="$CUDA_ROOT"
     export PATH="$CUDA_ROOT/bin:$PATH"
     export CUDA_VISIBLE_DEVICES="0,1"
