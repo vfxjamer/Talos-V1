@@ -96,6 +96,9 @@ else
     echo "WARNING: CUDA 12 toolkit not found!"
 fi
 
+echo "═══ carball build deps ═══"
+pip install setuptools-rust -q 2>&1 | tail -3 || true
+
 echo "═══ cmake configure ═══"
 rm -rf "$BUILD_DIR"
 cd "$TALOS_DIR"
