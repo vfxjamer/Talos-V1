@@ -1,0 +1,19 @@
+build/
+Release/
+.vs/
+*.user
+*.suo
+*.sln.docstates
+.DS_Store
+Thumbs.db
+wandb/
+checkpoints/
+collision_meshes/
+torch_dlls_bak/
+pycache/
+__pycache__/
+*.pyc
+.env
+
+# API keys
+Kaggle/API/
