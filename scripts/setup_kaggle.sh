@@ -30,9 +30,9 @@ fi
 
 echo "═══ CUDA toolkit ═══"
 CUDA_ROOT=""
-# Check if CUDA 12 already installed (Kaggle's default or from prior install)
+# Check if CUDA 12 already installed
 for d in /usr/local/cuda-12* /usr/local/cuda /usr/lib/cuda-12*; do
-    if [ -d "$d" ] && [ -f "$d/include/cuda.h" ]; then
+    if [ -d "$d" ] && { [ -f "$d/include/cuda.h" ] || [ -f "$d/bin/nvcc" ]; }; then
         CUDA_ROOT="$d"
         echo "Found CUDA 12 at $d"
         break
@@ -54,12 +54,16 @@ if [ -z "$CUDA_ROOT" ]; then
 fi
 if [ -z "$CUDA_ROOT" ]; then
     echo "Installing CUDA 12.1 from NVIDIA..."
+    # Remove conflicting CUDA 11.5 from apt first
+    apt-get remove -y -qq nvidia-cuda-toolkit libcudart-dev 2>/dev/null || true
+    apt-get autoremove -y -qq 2>/dev/null || true
+    rm -f /usr/include/cuda.h /usr/include/cuda_runtime.h 2>/dev/null || true
     apt-get install -y -qq wget 2>&1 | tail -3
     wget -q https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.0-1_all.deb \
         -O /tmp/cuda-keyring.deb
     dpkg -i /tmp/cuda-keyring.deb 2>&1 | tail -3
     apt-get update -qq 2>/dev/null || true
-    apt-get install -y -qq cuda-compiler-12-1 cuda-libraries-12-1 cuda-cudart-dev-12-1 2>&1 | tail -5
+    apt-get install -y -qq cuda-compiler-12-1 cuda-libraries-dev-12-1 2>&1 | tail -5
     CUDA_ROOT="/usr/local/cuda-12.1"
     if [ ! -f "$CUDA_ROOT/include/cuda.h" ]; then
         # Symlink not created yet
