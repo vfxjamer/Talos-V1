@@ -29,35 +29,46 @@ else
 fi
 
 echo "═══ CUDA toolkit ═══"
-CUDA_ROOT=""
-# Check if CUDA 12 already installed
-for d in /usr/local/cuda-12* /usr/local/cuda /usr/lib/cuda-12*; do
-    if [ -d "$d" ] && { [ -f "$d/include/cuda.h" ] || [ -f "$d/bin/nvcc" ]; }; then
-        CUDA_ROOT="$d"
-        echo "Found CUDA 12 at $d"
-        break
-    fi
-done
-# Fallback: check nvcc version
+# Remove old CUDA 11.5 headers that conflict with 12.x
+apt-get remove -y -qq nvidia-cuda-toolkit libcudart-dev 2>/dev/null || true
+apt-get autoremove -y -qq 2>/dev/null || true
+rm -f /usr/include/cuda.h /usr/include/cuda_runtime.h /usr/include/cuda_runtime_api.h 2>/dev/null || true
+
+# Prefer our own CUDA 12.1 install (clean, no conflicts)
+if [ -d "/usr/local/cuda-12.1" ] && [ -f "/usr/local/cuda-12.1/bin/nvcc" ]; then
+    CUDA_ROOT="/usr/local/cuda-12.1"
+    echo "Found CUDA 12.1 at $CUDA_ROOT"
+fi
 if [ -z "$CUDA_ROOT" ]; then
+    # Check if CUDA 12 already installed in standard Kaggle paths
+    for d in /usr/local/cuda-12 /usr/local/cuda /usr/lib/cuda-12; do
+        if [ -d "$d" ] && [ -f "$d/bin/nvcc" ]; then
+            VER=$("$d/bin/nvcc" --version 2>/dev/null | grep 'release' | grep -oP 'release \K[0-9.]+' || echo "0")
+            MAJOR=${VER%%.*}
+            if [ "$MAJOR" -ge 12 ]; then
+                CUDA_ROOT="$d"
+                echo "Found CUDA $VER at $d"
+            else
+                echo "Found CUDA $VER at $d (need 12.x)"
+            fi
+            break
+        fi
+    done
+fi
+if [ -z "$CUDA_ROOT" ]; then
+    # Check any nvcc in PATH
     NVCC=$(command -v nvcc 2>/dev/null || true)
     if [ -n "$NVCC" ]; then
-        VER=$(nvcc --version 2>/dev/null | grep 'release' | grep -oP 'release \K[0-9.]+' || echo "11.5")
+        VER=$(nvcc --version 2>/dev/null | grep 'release' | grep -oP 'release \K[0-9.]+' || echo "0")
         MAJOR=${VER%%.*}
         if [ "$MAJOR" -ge 12 ]; then
             CUDA_ROOT=$(dirname "$(dirname "$NVCC")")
             echo "Found nvcc (CUDA $VER) at $CUDA_ROOT"
-        else
-            echo "Found nvcc CUDA $VER but need 12.x — will install CUDA 12.1"
         fi
     fi
 fi
 if [ -z "$CUDA_ROOT" ]; then
     echo "Installing CUDA 12.1 from NVIDIA..."
-    # Remove conflicting CUDA 11.5 from apt first
-    apt-get remove -y -qq nvidia-cuda-toolkit libcudart-dev 2>/dev/null || true
-    apt-get autoremove -y -qq 2>/dev/null || true
-    rm -f /usr/include/cuda.h /usr/include/cuda_runtime.h 2>/dev/null || true
     apt-get install -y -qq wget 2>&1 | tail -3
     wget -q https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.0-1_all.deb \
         -O /tmp/cuda-keyring.deb
@@ -65,13 +76,12 @@ if [ -z "$CUDA_ROOT" ]; then
     apt-get update -qq 2>/dev/null || true
     apt-get install -y -qq cuda-compiler-12-1 cuda-libraries-dev-12-1 2>&1 | tail -5
     CUDA_ROOT="/usr/local/cuda-12.1"
-    if [ ! -f "$CUDA_ROOT/include/cuda.h" ]; then
-        # Symlink not created yet
-        CUDA_ROOT="/usr/local/cuda-12.1"
-        ls "$CUDA_ROOT" 2>/dev/null || echo "CUDA 12.1 dir missing"
-    fi
 fi
-if [ -f "$CUDA_ROOT/include/cuda.h" ]; then
+if [ -n "$CUDA_ROOT" ]; then
+    # Force-clean any CUDA 11.5 headers that cmake finds via /usr/include
+    find /usr/include -name 'cuda*' -delete 2>/dev/null || true
+    find /usr/include -name 'nvtx*' -delete 2>/dev/null || true
+    rm -rf /usr/include/crt 2>/dev/null || true
     export CUDA_TOOLKIT_ROOT_DIR="$CUDA_ROOT"
     export PATH="$CUDA_ROOT/bin:$PATH"
     export CUDA_VISIBLE_DEVICES="0,1"
