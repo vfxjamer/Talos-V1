@@ -8,7 +8,7 @@ Release/
 Thumbs.db
 wandb/
 checkpoints/
-collision_meshes/
+# collision_meshes/  # now tracked in git
 torch_dlls_bak/
 pycache/
 __pycache__/
