@@ -76,7 +76,8 @@ if [ -z "$CUDA_ROOT" ]; then
         -O /tmp/cuda-keyring.deb
     dpkg -i /tmp/cuda-keyring.deb 2>&1 | tail -3
     apt-get update -qq 2>/dev/null || true
-    apt-get install -y -qq cuda-compiler-12-1 cuda-libraries-dev-12-1 2>&1 | tail -5
+    apt-get install -y -qq cuda-compiler-12-1 cuda-libraries-dev-12-1 \
+        cuda-nvtx-12-1 cuda-cublas-dev-12-1 2>&1 | tail -5
     CUDA_ROOT="/usr/local/cuda-12.1"
 fi
 if [ -n "$CUDA_ROOT" ]; then
@@ -84,6 +85,8 @@ if [ -n "$CUDA_ROOT" ]; then
     find /usr/include -name 'cuda*' -delete 2>/dev/null || true
     find /usr/include -name 'nvtx*' -delete 2>/dev/null || true
     rm -rf /usr/include/crt 2>/dev/null || true
+    # Ensure extra CUDA dev packages (needed by LibTorch)
+    apt-get install -y -qq cuda-nvtx-12-1 cuda-cublas-dev-12-1 2>/dev/null | tail -3 || true
     export CUDA_TOOLKIT_ROOT_DIR="$CUDA_ROOT"
     export PATH="$CUDA_ROOT/bin:$PATH"
     export CUDA_VISIBLE_DEVICES="0,1"
