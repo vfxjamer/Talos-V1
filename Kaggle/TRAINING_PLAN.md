@@ -18,23 +18,21 @@ Train Talos v1 (Rocket League 1v1 RL bot) to **200B steps** using **4 Kaggle Fre
   - TalosOBS.cpp: +3 scoreboard features (goal_diff, time_left, overtime)
   - TalosStateSetter.cpp: Binary replay loader with height-weighted sampling, 70/30 split
 - **Binary tested**: Runs locally, prints help, all CLI args functional
-- **GitHub source repo**: `vfxjamer/Talos-V1` (private) — latest commit `c57d286`
-- **Collision meshes**: Tracked in git (16 .cmf files, ~175KB) — removed from .gitignore
-- **Kaggle notebook**: `Kaggle/run_talos.ipynb` rewritten with:
-  - GitHub clone → build (cmake/g++ on Kaggle) → pull checkpoints → train → push checkpoints
-- **PAT**: Updated to classic PAT (`ghp_...`) with full `repo` scope — git push works
+- **GitHub source repo**: `vfxjamer/Talos-V1` (private)
+- **Collision meshes**: Tracked in git (16 .cmf files)
+- **Notebook**: `Kaggle/run_talos.ipynb` — 32 games, CPU build, T4x2 GPU train, replay parsing on Kaggle
+- **PAT**: Classic PAT (`ghp_...`) with full `repo` scope
 - **Checkpoint repo**: `vfxjamer/talos-checkpoints` created (public, empty)
+- **Replays**: 92 Ranked Duels replays tracked in `replays/` directory
 
-### Remaining
-- **Replay files**: No .replay files found on this machine. User needs to provide them or download from ballchasing.com
-- **Kaggle Secrets**: User must set `GITHUB_PAT` as a Kaggle Secret on the notebook
-- **First Kaggle session**: Test full cycle: clone → build → train → push checkpoints
+### User Setup Needed
+- **Set `GITHUB_PAT` as Kaggle Secret** on the notebook
+- **First Kaggle session**: start the notebook to test full cycle
 
 ## Architecture
 
 ### Network
-- Shared MLP: 2×512 → Policy 6×512 / Critic 6×512
-- ≈3.46M params
+- Shared MLP: 2×512 → Policy 6×512 / Critic 6×512 (≈3.46M params)
 
 ### 4-Phase Schedule
 | Phase | Steps | Gamma | Entropy | LR | Epochs | MiniBatch |
@@ -63,35 +61,30 @@ Train Talos v1 (Rocket League 1v1 RL bot) to **200B steps** using **4 Kaggle Fre
 | ang_vel_w | 0.005 | Tiny spinning reward |
 | touch_grass_w | 0.005 | Ground idle penalty |
 | opponent_punish_w | **1.0** | Opponent avg subtraction (was 0.5 in Necto) |
-| ~~vel_ball_to_goal_w~~ | removed | Not in Necto |
-| ~~team_spirit~~ | removed | No-op in 1v1 |
-
-### Observations
-88 total features: 85 standard RocketSim + 3 scoreboard (goal_diff clamped [-1,1], time_left [0,1], is_overtime)
 
 ### State Initialization
-- 70% replay frames (binary, height-weighted aerial bias)
+- 70% replay frames from 92 Ranked Duels replays (parsed on Kaggle via carball/boxcars)
 - 30% procedural modes (kickoff, ground, goalie, aerial, wall, dribble)
 
 ## Session Workflow
 ```
 1. Clone Talos-V1 from GitHub (PAT from Kaggle Secret)
-2. Install cmake/g++, download LibTorch, build binary
-3. Pull latest checkpoint from vfxjamer/talos-checkpoints
-4. Run: ./Talos --device cuda --games 20 --resume checkpoints --save-dir checkpoints
-5. Every checkpoint save → git push to talos-checkpoints
-6. Session end → final push
+2. Install cmake/g++, download LibTorch, build binary (all CPU)
+3. Install carball, parse 92 replays → serialized_replays.bin
+4. Pull latest checkpoint from vfxjamer/talos-checkpoints
+5. Run: ./Talos --device cuda --games 32 --resume checkpoints --save-dir checkpoints (T4x2 GPU)
+6. Every checkpoint save → git push to talos-checkpoints
+7. Session end → final push
 ```
 
 ## Account Rotation
-- 4 × Kaggle Free accounts cycling
-- Each has 30h/week GPU quota
-- Checkpoints shared via `vfxjamer/talos-checkpoints` repo
+- 4 × Kaggle Free accounts cycling, 30h/week GPU quota each
+- Checkpoints shared via `vfxjamer/talos-checkpoints`
 
-## Key Repositories
+## Repositories
 | Repo | Purpose |
 |---|---|
-| `vfxjamer/Talos-V1` | Source code + build |
+| `vfxjamer/Talos-V1` | Source code + build + replays |
 | `vfxjamer/talos-checkpoints` | Training checkpoints (shared across accounts) |
 
 ## Key Files
@@ -102,9 +95,9 @@ Train Talos v1 (Rocket League 1v1 RL bot) to **200B steps** using **4 Kaggle Fre
 | `src/TalosRewards.cpp` | GoalSpeedBonus (goals only), GoalDistBonus (fixed) |
 | `src/TalosOBS.cpp` | +3 scoreboard features |
 | `src/TalosStateSetter.cpp` | Binary replay loader, 70/30 split |
-| `Kaggle/run_talos.ipynb` | Kaggle runner (clone → build → train → push) |
-| `collision_meshes/soccar/*.cmf` | RocketSim collision meshes (tracked in git) |
+| `Kaggle/run_talos.ipynb` | Kaggle runner (clone → build → parse → train → push) |
+| `scripts/parse_replays.py` | Carball/boxcars-based replay parser |
+| `replays/*.replay` | 92 Ranked Duels replays |
 
 ## Credentials (Kaggle/API/ — gitignored)
 - `GITHUB-API.txt` → classic PAT with repo scope
-- `Kaggle acc-1.txt` → Kaggle API token
