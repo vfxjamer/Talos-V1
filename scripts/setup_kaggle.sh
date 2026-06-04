@@ -78,6 +78,7 @@ else
 fi
 
 echo "═══ cmake configure ═══"
+rm -rf "$BUILD_DIR"
 cd "$TALOS_DIR"
 cmake -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE=Release 2>&1 || {
     rc=$?
