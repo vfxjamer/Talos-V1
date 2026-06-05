@@ -108,18 +108,22 @@ fi
 pip install sprocket-rl-parser -q 2>&1 | tail -5 || echo "sprocket-rl-parser install skipped (can install later)"
 
 echo "═══ cmake configure ═══"
-rm -rf "$BUILD_DIR"
 cd "$TALOS_DIR"
-cmake -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE=Release 2>&1 || {
-    rc=$?
-    echo "cmake configure failed (exit $rc)"
-    echo "CUDA_TOOLKIT_ROOT_DIR=${CUDA_TOOLKIT_ROOT_DIR:-unset}"
-    echo "CUDA_ROOT=${CUDA_ROOT:-unset}"
-    ls /usr/local/cuda* 2>/dev/null || echo "no /usr/local/cuda*"
-    ls /usr/lib/cuda* 2>/dev/null || echo "no /usr/lib/cuda*"
-    command -v nvcc 2>/dev/null || echo "nvcc not found"
-    exit $rc
-}
+if [ ! -f "$BUILD_DIR/build.ninja" ] && [ ! -f "$BUILD_DIR/Makefile" ]; then
+    cmake -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE=Release 2>&1 || {
+        rc=$?
+        echo "cmake configure failed (exit $rc)"
+        echo "CUDA_TOOLKIT_ROOT_DIR=${CUDA_TOOLKIT_ROOT_DIR:-unset}"
+        echo "CUDA_ROOT=${CUDA_ROOT:-unset}"
+        ls /usr/local/cuda* 2>/dev/null || echo "no /usr/local/cuda*"
+        ls /usr/lib/cuda* 2>/dev/null || echo "no /usr/lib/cuda*"
+        command -v nvcc 2>/dev/null || echo "nvcc not found"
+        exit $rc
+    }
+else
+    echo "Build directory exists, reconfigure if needed"
+    cmake -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE=Release 2>&1 | tail -5
+fi
 
 echo "═══ cmake build ═══"
 cmake --build "$BUILD_DIR" --config Release -j"$NPROC" 2>&1
