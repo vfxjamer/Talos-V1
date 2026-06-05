@@ -1,12 +1,13 @@
-"""Build Talos on Kaggle. Run from the repo root (LOCAL_DIR)."""
-import os, subprocess, sys
+"""Build Talos on Kaggle. Run from the repo root."""
+import os, subprocess, sys, re, threading
+from pathlib import Path
 
 LOCAL_DIR = os.environ.get("TALOS_DIR", os.getcwd())
 BUILD_DIR = os.path.join(LOCAL_DIR, "build")
 BINARY = "Talos"
 
 def log(msg):
-    print(f"═══ {msg} ═══", flush=True)
+    print(f"\n═══ {msg} ═══", flush=True)
 
 def run(cmd, **kw):
     print(f">>> {' '.join(cmd)}", flush=True)
@@ -18,7 +19,7 @@ def apt_install(pkgs):
          "-oDPkg::Lock::Timeout=120", "--no-install-recommends"]
         + pkgs.split())
 
-# ── Kill stale apt locks from previous killed sessions ─────
+# ── Kill stale apt locks ──────────────────────────────────
 for p in ["apt-get", "dpkg"]:
     subprocess.run(["pkill", "-9", p], capture_output=True)
 for lock in ["/var/lib/dpkg/lock-frontend", "/var/lib/apt/lists/lock",
@@ -31,19 +32,17 @@ subprocess.run(["dpkg", "--configure", "-a"], capture_output=True)
 log("Installing build deps")
 run(["apt-get", "update", "-qq", "-oDPkg::Lock::Timeout=120"])
 apt_install("cmake build-essential pkg-config")
-print("OK", flush=True)
 
 # ── LibTorch ───────────────────────────────────────────────
 log("LibTorch")
-if not os.path.exists(os.path.join(LOCAL_DIR, "libtorch")):
-    print("Downloading LibTorch (~2GB)...", flush=True)
+libtorch_dir = os.path.join(LOCAL_DIR, "libtorch")
+if not os.path.exists(libtorch_dir):
     apt_install("wget unzip")
     run(["wget", "-q", "--show-progress",
          "https://download.pytorch.org/libtorch/cu121/libtorch-cxx11-abi-shared-with-deps-2.1.0%2Bcu121.zip",
          "-O", "/tmp/libtorch.zip"])
     run(["unzip", "-q", "/tmp/libtorch.zip", "-d", LOCAL_DIR])
     os.remove("/tmp/libtorch.zip")
-    print("LibTorch extracted", flush=True)
 else:
     print("LibTorch already cached", flush=True)
 
@@ -61,14 +60,45 @@ else:
 
 # ── cmake configure ────────────────────────────────────────
 log("cmake configure")
-os.environ["CMAKE_PREFIX_PATH"] = os.path.join(LOCAL_DIR, "libtorch")
-has_build = os.path.isfile(os.path.join(BUILD_DIR, "build.ninja"))
-has_build = has_build or os.path.isfile(os.path.join(BUILD_DIR, "Makefile"))
+os.environ["CMAKE_PREFIX_PATH"] = libtorch_dir
 run(["cmake", "-B", BUILD_DIR, "-DCMAKE_BUILD_TYPE=Release"])
 
 # ── cmake build ────────────────────────────────────────────
 log("cmake build")
 nproc = os.cpu_count() or 4
-run(["cmake", "--build", BUILD_DIR, "--config", "Release", "-j", str(nproc)])
+print(f"Building with {nproc} threads...", flush=True)
+
+# Install tqdm for progress bar
+try:
+    import tqdm
+except ImportError:
+    subprocess.run([sys.executable, "-m", "pip", "install", "tqdm", "-q"],
+                   capture_output=True)
+    import tqdm
+
+# Parse cmake progress
+proc = subprocess.Popen(
+    ["cmake", "--build", BUILD_DIR, "--config", "Release", "-j", str(nproc)],
+    cwd=LOCAL_DIR,
+    stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+    universal_newlines=True, bufsize=1)
+
+pct_pat = re.compile(r"^\[(\s*\d+)%\]")
+bar = tqdm.tqdm(total=100, unit="%", desc="Compiling", ncols=80)
+
+for line in proc.stdout:
+    line = line.rstrip()
+    m = pct_pat.match(line)
+    if m:
+        pct = int(m.group(1).strip())
+        bar.n = pct
+        bar.refresh()
+    else:
+        print(line, flush=True)
+
+bar.close()
+proc.wait()
+if proc.returncode != 0:
+    raise subprocess.CalledProcessError(proc.returncode, ["cmake", "--build"])
 
 log("Build complete")
