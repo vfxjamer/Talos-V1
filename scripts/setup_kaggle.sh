@@ -99,8 +99,13 @@ else
     echo "WARNING: CUDA 12 toolkit not found!"
 fi
 
-echo "═══ carball build deps ═══"
-pip install setuptools-rust -q 2>&1 | tail -3 || true
+echo "═══ carball build deps (Rust + setuptools-rust) ═══"
+if ! command -v cargo &>/dev/null; then
+    echo "Installing Rust..."
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y 2>&1 | tail -3
+    export PATH="$HOME/.cargo/bin:$PATH"
+fi
+pip install setuptools-rust -q 2>&1 | tail -3
 
 echo "═══ cmake configure ═══"
 rm -rf "$BUILD_DIR"
