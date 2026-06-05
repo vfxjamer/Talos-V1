@@ -105,8 +105,7 @@ if ! command -v cargo &>/dev/null; then
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y 2>&1 | tail -3
     export PATH="$HOME/.cargo/bin:$PATH"
 fi
-pip install setuptools-rust -q 2>&1 | tail -3
-pip install carball -q 2>&1 | tail -5 || echo "carball install skipped (can install later)"
+pip install sprocket-rl-parser -q 2>&1 | tail -5 || echo "sprocket-rl-parser install skipped (can install later)"
 
 echo "═══ cmake configure ═══"
 rm -rf "$BUILD_DIR"

@@ -1,10 +1,10 @@
 """
 Talos v1 Replay Parsing & Binary Serialization
 ================================================
-Parses .replay files using carball (with boxcars backend), serializes to flat binary.
+Parses .replay files using carball (sprocket-rl-parser backend), serializes to flat binary.
 
 Usage:
-    pip install carball
+    pip install sprocket-rl-parser
     python parse_replays.py --replay-dir ./replays --output serialized_replays.bin
 
 Binary format (little-endian, 114 bytes per frame):
