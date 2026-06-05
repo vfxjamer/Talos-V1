@@ -1,6 +1,8 @@
 #!/bin/bash
 set -uo pipefail
 
+export DEBIAN_FRONTEND=noninteractive
+
 TALOS_DIR="${TALOS_DIR:-/kaggle/working/talos}"
 BUILD_DIR="${TALOS_DIR}/build"
 BINARY="Talos"
