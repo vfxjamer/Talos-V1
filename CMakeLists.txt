@@ -9,7 +9,11 @@ add_subdirectory(thirdparty/GigaLearnCPP-Leak/GigaLearnCPP)
 file(GLOB TALOS_SRC "src/*.cpp" "src/*.h")
 
 add_executable(Talos ${TALOS_SRC})
-target_link_options(Talos PRIVATE /STACK:8388608)
+if(MSVC)
+    target_link_options(Talos PRIVATE /STACK:8388608)
+else()
+    target_link_options(Talos PRIVATE -Wl,--stack,8388608)
+endif()
 target_link_libraries(Talos PRIVATE GigaLearnCPP)
 target_include_directories(Talos PRIVATE "src")
 
@@ -34,18 +38,20 @@ add_custom_command(TARGET Talos POST_BUILD
 	COMMENT "Copying Python scripts to output..."
 )
 
-add_executable(TalosStarter WIN32 src/TalosStarter.cpp)
+if(WIN32)
+    add_executable(TalosStarter WIN32 src/TalosStarter.cpp)
 
-add_custom_command(TARGET TalosStarter POST_BUILD
-	COMMAND ${CMAKE_COMMAND} -E copy
-		"$<TARGET_FILE:TalosStarter>"
-		"$<TARGET_FILE_DIR:Talos>/"
-	COMMENT "Copying TalosStarter to output..."
-)
+    add_custom_command(TARGET TalosStarter POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy
+            "$<TARGET_FILE:TalosStarter>"
+            "$<TARGET_FILE_DIR:Talos>/"
+        COMMENT "Copying TalosStarter to output..."
+    )
 
-add_custom_command(TARGET TalosStarter POST_BUILD
-	COMMAND ${CMAKE_COMMAND} -E copy_if_different
-		"$<TARGET_FILE:TalosStarter>"
-		"$ENV{APPDATA}/Microsoft/Windows/Start Menu/Programs/Startup/"
-	COMMENT "Registering TalosStarter for automatic startup..."
-)
+    add_custom_command(TARGET TalosStarter POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:TalosStarter>"
+            "$ENV{APPDATA}/Microsoft/Windows/Start Menu/Programs/Startup/"
+        COMMENT "Registering TalosStarter for automatic startup..."
+    )
+endif()
