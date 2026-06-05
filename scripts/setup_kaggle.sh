@@ -2,6 +2,14 @@
 set -uo pipefail
 
 export DEBIAN_FRONTEND=noninteractive
+APT_OPTS="-o DPkg::Lock::Timeout=120 -qq"
+
+# Kill any apt/dpkg processes left from a previous killed session
+pkill -9 apt-get 2>/dev/null || true
+pkill -9 dpkg 2>/dev/null || true
+# Clear apt locks that cause hangs
+rm -f /var/lib/dpkg/lock-frontend /var/lib/apt/lists/lock /var/cache/apt/archives/lock 2>/dev/null || true
+dpkg --configure -a 2>/dev/null || true
 
 TALOS_DIR="${TALOS_DIR:-/kaggle/working/talos}"
 BUILD_DIR="${TALOS_DIR}/build"
@@ -11,15 +19,15 @@ NPROC=$(nproc)
 export CMAKE_PREFIX_PATH="${TALOS_DIR}/libtorch"
 
 echo "═══ Installing build deps ═══"
-apt-get update -qq 2>/dev/null || true
-apt-get install -y -qq cmake build-essential pkg-config 2>&1 | tail -5
+apt-get update $APT_OPTS 2>/dev/null || true
+apt-get install $APT_OPTS --no-install-recommends cmake build-essential pkg-config 2>&1 | tail -5
 echo "OK"
 
 echo "═══ LibTorch ═══"
 LIBTORCH_DIR="${TALOS_DIR}/libtorch"
 if [ ! -d "$LIBTORCH_DIR" ]; then
     echo "Downloading LibTorch (~2GB)..."
-    apt-get install -y -qq wget unzip 2>&1 | tail -3
+    apt-get install $APT_OPTS --no-install-recommends wget unzip 2>&1 | tail -3
     wget -q --show-progress \
         "https://download.pytorch.org/libtorch/cu121/libtorch-cxx11-abi-shared-with-deps-2.1.0%2Bcu121.zip" \
         -O /tmp/libtorch.zip
@@ -32,8 +40,8 @@ fi
 
 echo "═══ CUDA toolkit ═══"
 # Remove old CUDA 11.5 that conflicts with 12.x
-apt-get remove -y -qq nvidia-cuda-toolkit libcudart-dev 2>/dev/null || true
-apt-get autoremove -y -qq 2>/dev/null || true
+apt-get remove $APT_OPTS nvidia-cuda-toolkit libcudart-dev 2>/dev/null || true
+apt-get autoremove $APT_OPTS 2>/dev/null || true
 # Kill leftover nvcc wrapper that points to old CUDA
 rm -f /usr/bin/nvcc /usr/lib/nvidia-cuda-toolkit/bin/nvcc 2>/dev/null || true
 rm -f /usr/include/cuda.h /usr/include/cuda_runtime.h 2>/dev/null || true
@@ -53,12 +61,12 @@ for d in /usr/local/cuda-12 /usr/local/cuda /usr/local/cuda-12.1 /usr/lib/cuda-1
 done
 if [ -z "$CUDA_ROOT" ]; then
     echo "Installing CUDA 12.1 from NVIDIA..."
-    apt-get install -y -qq wget 2>&1 | tail -3
+    apt-get install $APT_OPTS --no-install-recommends wget 2>&1 | tail -3
     wget -q https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.0-1_all.deb \
         -O /tmp/cuda-keyring.deb
     dpkg -i /tmp/cuda-keyring.deb 2>&1 | tail -3
-    apt-get update -qq 2>/dev/null || true
-    apt-get install -y -qq cuda-toolkit-12-1 2>&1 | tail -5
+    apt-get update $APT_OPTS 2>/dev/null || true
+    apt-get install $APT_OPTS --no-install-recommends cuda-toolkit-12-1 2>&1 | tail -5
     CUDA_ROOT="/usr/local/cuda-12.1"
 fi
 if [ -n "$CUDA_ROOT" ]; then
@@ -68,13 +76,13 @@ if [ -n "$CUDA_ROOT" ]; then
     rm -rf /usr/include/crt 2>/dev/null || true
     # NVIDIA repo keyring (needed for extra packages)
     if [ ! -f /etc/apt/sources.list.d/cuda*.sources ] 2>/dev/null; then
-        apt-get install -y -qq wget 2>&1 | tail -1
+        apt-get install $APT_OPTS --no-install-recommends wget 2>&1 | tail -1
         wget -q https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.0-1_all.deb -O /tmp/cuda-keyring.deb
         dpkg -i /tmp/cuda-keyring.deb 2>&1 | tail -1
-        apt-get update -qq 2>/dev/null || true
+        apt-get update $APT_OPTS 2>/dev/null || true
     fi
     # Install packages that LibTorch needs (nvtx, cublas)
-    apt-get install -y -qq cuda-nvtx-12-1 cuda-cublas-dev-12-1 2>&1 | tail -5 || true
+    apt-get install $APT_OPTS --no-install-recommends cuda-nvtx-12-1 cuda-cublas-dev-12-1 2>&1 | tail -5 || true
     # nvToolsExt.h may be at nvtx3/ symlink it if needed
     if [ ! -f "$CUDA_ROOT/include/nvToolsExt.h" ]; then
         NVTX_H=$(find "$CUDA_ROOT" -name "nvToolsExt.h" 2>/dev/null | head -1)
