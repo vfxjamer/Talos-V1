@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 add_subdirectory(thirdparty/GigaLearnCPP-Leak/GigaLearnCPP)
 
 file(GLOB TALOS_SRC "src/*.cpp" "src/*.h")
+list(FILTER TALOS_SRC EXCLUDE REGEX ".*TalosStarter\\.cpp$")
 
 add_executable(Talos ${TALOS_SRC})
 if(MSVC)
