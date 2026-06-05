@@ -13,9 +13,14 @@ dpkg --configure -a 2>/dev/null || true
 TALOS_DIR="${TALOS_DIR:-/kaggle/working/talos}"
 BUILD_DIR="${TALOS_DIR}/build"
 BINARY="Talos"
-NPROC=$(nproc)
+
+echo "═══ Starting setup ═══"
+
+NPROC=$(nproc 2>/dev/null || echo 4)
 
 export CMAKE_PREFIX_PATH="${TALOS_DIR}/libtorch"
+
+echo "═══ Starting setup ═══"
 
 echo "═══ Installing build deps ═══"
 apt-get update $APT_OPTS 2>/dev/null || true
