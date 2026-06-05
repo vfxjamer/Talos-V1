@@ -1,5 +1,5 @@
 #!/bin/bash
-set -uo pipefail
+set -euo pipefail
 
 export DEBIAN_FRONTEND=noninteractive
 APT_OPTS="-o DPkg::Lock::Timeout=120 -qq"
@@ -7,7 +7,6 @@ APT_OPTS="-o DPkg::Lock::Timeout=120 -qq"
 # Kill any apt/dpkg processes left from a previous killed session
 pkill -9 apt-get 2>/dev/null || true
 pkill -9 dpkg 2>/dev/null || true
-# Clear apt locks that cause hangs
 rm -f /var/lib/dpkg/lock-frontend /var/lib/apt/lists/lock /var/cache/apt/archives/lock 2>/dev/null || true
 dpkg --configure -a 2>/dev/null || true
 
@@ -39,69 +38,25 @@ else
 fi
 
 echo "═══ CUDA toolkit ═══"
-# Remove old CUDA 11.5 that conflicts with 12.x
-apt-get remove $APT_OPTS nvidia-cuda-toolkit libcudart-dev 2>/dev/null || true
-apt-get autoremove $APT_OPTS 2>/dev/null || true
-# Kill leftover nvcc wrapper that points to old CUDA
-rm -f /usr/bin/nvcc /usr/lib/nvidia-cuda-toolkit/bin/nvcc 2>/dev/null || true
-rm -f /usr/include/cuda.h /usr/include/cuda_runtime.h 2>/dev/null || true
-
+# Kaggle T4x2 already has CUDA 12.1 at /usr/local/cuda-12
 CUDA_ROOT=""
-# Check CUDA in priority order (Kaggle's full install first)
-for d in /usr/local/cuda-12 /usr/local/cuda /usr/local/cuda-12.1 /usr/lib/cuda-12; do
+for d in /usr/local/cuda-12 /usr/local/cuda /usr/local/cuda-12.1; do
     if [ -d "$d" ] && [ -f "$d/bin/nvcc" ]; then
-        VER=$("$d/bin/nvcc" --version 2>/dev/null | grep 'release' | grep -oP 'release \K[0-9.]+' || echo "0")
-        MAJOR=${VER%%.*}
-        if [ "$MAJOR" -ge 12 ]; then
-            CUDA_ROOT="$d"
-            echo "Found CUDA $VER at $d"
-            break
-        fi
+        CUDA_ROOT="$d"
+        echo "Found CUDA at $d"
+        break
     fi
 done
-if [ -z "$CUDA_ROOT" ]; then
-    echo "Installing CUDA 12.1 from NVIDIA..."
-    apt-get install $APT_OPTS --no-install-recommends wget 2>&1 | tail -3
-    wget -q https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.0-1_all.deb \
-        -O /tmp/cuda-keyring.deb
-    dpkg -i /tmp/cuda-keyring.deb 2>&1 | tail -3
-    apt-get update $APT_OPTS 2>/dev/null || true
-    apt-get install $APT_OPTS --no-install-recommends cuda-toolkit-12-1 2>&1 | tail -5
-    CUDA_ROOT="/usr/local/cuda-12.1"
-fi
+
 if [ -n "$CUDA_ROOT" ]; then
-    # Force-clean any CUDA 11.5 headers that cmake finds via /usr/include
+    # Remove conflicting old CUDA headers
     find /usr/include -name 'cuda*' -delete 2>/dev/null || true
     find /usr/include -name 'nvtx*' -delete 2>/dev/null || true
     rm -rf /usr/include/crt 2>/dev/null || true
-    # NVIDIA repo keyring (needed for extra packages)
-    if [ ! -f /etc/apt/sources.list.d/cuda*.sources ] 2>/dev/null; then
-        apt-get install $APT_OPTS --no-install-recommends wget 2>&1 | tail -1
-        wget -q https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.0-1_all.deb -O /tmp/cuda-keyring.deb
-        dpkg -i /tmp/cuda-keyring.deb 2>&1 | tail -1
-        apt-get update $APT_OPTS 2>/dev/null || true
-    fi
-    # Install packages that LibTorch needs (nvtx, cublas)
-    apt-get install $APT_OPTS --no-install-recommends cuda-nvtx-12-1 cuda-cublas-dev-12-1 2>&1 | tail -5 || true
-    # nvToolsExt.h may be at nvtx3/ symlink it if needed
-    if [ ! -f "$CUDA_ROOT/include/nvToolsExt.h" ]; then
-        NVTX_H=$(find "$CUDA_ROOT" -name "nvToolsExt.h" 2>/dev/null | head -1)
-        if [ -n "$NVTX_H" ]; then
-            ln -sf "$NVTX_H" "$CUDA_ROOT/include/nvToolsExt.h"
-            echo "Symlinked nvToolsExt.h"
-        else
-            # Search system wide
-            NVTX_H=$(find /usr/local -name "nvToolsExt.h" 2>/dev/null | head -1)
-            if [ -n "$NVTX_H" ]; then
-                ln -sf "$NVTX_H" "$CUDA_ROOT/include/nvToolsExt.h"
-                echo "Symlinked nvToolsExt.h from $NVTX_H"
-            fi
-        fi
-    fi
+
     export CUDA_TOOLKIT_ROOT_DIR="$CUDA_ROOT"
     export PATH="$CUDA_ROOT/bin:$PATH"
     export CUDA_VISIBLE_DEVICES="0,1"
-    echo "CUDA root: $CUDA_ROOT"
     echo "nvcc: $(nvcc --version 2>&1 | grep release)"
 else
     echo "WARNING: CUDA 12 toolkit not found!"
@@ -113,15 +68,10 @@ if [ ! -f "$BUILD_DIR/build.ninja" ] && [ ! -f "$BUILD_DIR/Makefile" ]; then
     cmake -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE=Release 2>&1 || {
         rc=$?
         echo "cmake configure failed (exit $rc)"
-        echo "CUDA_TOOLKIT_ROOT_DIR=${CUDA_TOOLKIT_ROOT_DIR:-unset}"
-        echo "CUDA_ROOT=${CUDA_ROOT:-unset}"
-        ls /usr/local/cuda* 2>/dev/null || echo "no /usr/local/cuda*"
-        ls /usr/lib/cuda* 2>/dev/null || echo "no /usr/lib/cuda*"
-        command -v nvcc 2>/dev/null || echo "nvcc not found"
         exit $rc
     }
 else
-    echo "Build directory exists, reconfigure if needed"
+    echo "Reconfiguring..."
     cmake -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE=Release 2>&1 | tail -5
 fi
 
