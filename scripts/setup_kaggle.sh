@@ -36,6 +36,7 @@ apt-get autoremove -y -qq 2>/dev/null || true
 rm -f /usr/bin/nvcc /usr/lib/nvidia-cuda-toolkit/bin/nvcc 2>/dev/null || true
 rm -f /usr/include/cuda.h /usr/include/cuda_runtime.h 2>/dev/null || true
 
+CUDA_ROOT=""
 # Check CUDA in priority order (Kaggle's full install first)
 for d in /usr/local/cuda-12 /usr/local/cuda /usr/local/cuda-12.1 /usr/lib/cuda-12; do
     if [ -d "$d" ] && [ -f "$d/bin/nvcc" ]; then
