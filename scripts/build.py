@@ -65,6 +65,11 @@ if not cuda_found:
 
 # ── cmake configure ────────────────────────────────────────
 log("cmake configure")
+# Clean any previous failed cmake cache
+import shutil as _shutil
+if os.path.exists(BUILD_DIR):
+    print(f"Cleaning previous build dir: {BUILD_DIR}")
+    _shutil.rmtree(BUILD_DIR, ignore_errors=True)
 os.environ["CMAKE_PREFIX_PATH"] = libtorch_dir
 # Set CUDA arch list for T4 (sm_75) to skip detection test
 os.environ["TORCH_CUDA_ARCH_LIST"] = "7.5"
