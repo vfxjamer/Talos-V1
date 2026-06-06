@@ -1,8 +1,16 @@
 cmake_minimum_required(VERSION 3.8)
 project("Talos" CXX)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+# CUDA 11.5 needs explicit C++20 flag for nvcc
+if(CMAKE_CUDA_COMPILER)
+    set(CMAKE_CUDA_STANDARD 20)
+    set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+    set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -std=c++20")
+endif()
 
 add_subdirectory(thirdparty/GigaLearnCPP-Leak/GigaLearnCPP)
 
