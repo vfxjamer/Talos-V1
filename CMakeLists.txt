@@ -15,6 +15,19 @@ set(CMAKE_CUDA_STANDARD_REQUIRED ON CACHE BOOL "Require CUDA standard" FORCE)
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -std=c++17" CACHE STRING "CUDA flags" FORCE)
 set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -std=c++17" CACHE STRING "NVCC flags" FORCE)
 
+# CUDA 13.x removed nvToolsExt (NVTX v1). libtorch's cmake checks for CUDA::nvToolsExt target.
+# Create a stub interface target so libtorch's check passes.
+if(NOT TARGET CUDA::nvToolsExt)
+    add_library(CUDA::nvToolsExt INTERFACE IMPORTED)
+    if(EXISTS "/usr/local/cuda/include/nvtx3")
+        set_property(TARGET CUDA::nvToolsExt PROPERTY INTERFACE_INCLUDE_DIRECTORIES "/usr/local/cuda/include")
+    endif()
+    if(EXISTS "/usr/local/cuda/lib64/libnvToolsExt.so")
+        set_property(TARGET CUDA::nvToolsExt PROPERTY INTERFACE_LINK_LIBRARIES "/usr/local/cuda/lib64/libnvToolsExt.so")
+    endif()
+    message(STATUS "Created stub CUDA::nvToolsExt target for CUDA 13.x compatibility")
+endif()
+
 add_subdirectory(thirdparty/GigaLearnCPP-Leak/GigaLearnCPP)
 
 file(GLOB TALOS_SRC "src/*.cpp" "src/*.h")
