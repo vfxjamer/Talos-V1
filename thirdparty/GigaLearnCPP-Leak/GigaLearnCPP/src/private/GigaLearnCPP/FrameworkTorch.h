@@ -4,7 +4,11 @@
 
 // Include torch
 #include <ATen/ATen.h>
+#if __has_include(<ATen/autocast/autocast_mode.h>)
+#include <ATen/autocast/autocast_mode.h>
+#elif __has_include(<ATen/autocast_mode.h>)
 #include <ATen/autocast_mode.h>
+#endif
 #include <torch/utils.h>
 
 #define RG_NO_GRAD torch::NoGradGuard _noGradGuard
