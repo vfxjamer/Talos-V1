@@ -68,8 +68,10 @@ log("cmake configure")
 os.environ["CMAKE_PREFIX_PATH"] = libtorch_dir
 result = subprocess.run(
     ["cmake", "-B", BUILD_DIR, "-DCMAKE_BUILD_TYPE=Release"],
-    cwd=LOCAL_DIR, capture_output=False
+    cwd=LOCAL_DIR, capture_output=True, text=True
 )
+print("STDOUT:", result.stdout)
+print("STDERR:", result.stderr)
 if result.returncode != 0:
     raise subprocess.CalledProcessError(result.returncode, ["cmake", "-B", BUILD_DIR])
 
