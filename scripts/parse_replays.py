@@ -101,12 +101,22 @@ def parse_with_boxcars(replay_path, max_frames, skip_frames):
     return frames_out
 
 def parse_with_carball_old(replay_path, max_frames, skip_frames):
-    """Fallback: use carball's protobuf-based decompile_replay (newer carball API)."""
+    """Fallback: use carball/sprocket-rl-parser's analyze_replay_file (newer API)."""
     import carball
-    # Newer carball (>= 0.7) uses snake_case decompile_replay instead of DecompileReplay
-    if hasattr(carball, "decompile_replay"):
-        game = carball.decompile_replay(replay_path)
-        proto = game.get_protobuf_data()
+    # Newer sprocket-rl-parser (>= 1.2) uses analyze_replay_file
+    if hasattr(carball, "analyze_replay_file"):
+        analysis_manager = carball.analyze_replay_file(replay_path, analysis_per_goal=False,
+                                                       calculate_intensive_events=False, clean=True)
+        proto = analysis_manager.get_protobuf_data()
+    elif hasattr(carball, "decompile_replay"):
+        # Even newer API where decompile_replay returns a dict-like object
+        result = carball.decompile_replay(replay_path)
+        if isinstance(result, dict) and "protobuf" in result:
+            proto = result["protobuf"]
+        elif hasattr(result, "get_protobuf_data"):
+            proto = result.get_protobuf_data()
+        else:
+            raise RuntimeError("carball.decompile_replay returned unexpected type")
     elif hasattr(carball, "DecompileReplay"):
         game = carball.DecompileReplay(replay_path)
         proto = game.get_protobuf_data()
