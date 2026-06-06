@@ -12,12 +12,13 @@ set(CMAKE_CUDA_ARCHITECTURES "75" CACHE STRING "CUDA architectures" FORCE)
 # but keep C++20 for host code (needed by RLGymCPP ThreadPool.h concepts)
 set(CMAKE_CUDA_STANDARD 17 CACHE STRING "CUDA C++ standard" FORCE)
 set(CMAKE_CUDA_STANDARD_REQUIRED ON CACHE BOOL "Require CUDA standard" FORCE)
-# CUDA 11.5's nvcc doesn't support C++20, so use C++17 for CUDA test compiles
-# but keep C++20 for host code (needed by RLGymCPP ThreadPool.h concepts)
-set(CMAKE_CUDA_STANDARD 17 CACHE STRING "CUDA C++ standard" FORCE)
-set(CMAKE_CUDA_STANDARD_REQUIRED ON CACHE BOOL "Require CUDA standard" FORCE)
 # Note: libtorch validates CUDA_NVCC_FLAGS entries don't contain spaces.
 # CMAKE_CUDA_STANDARD=17 above handles -std=c++17, no need to append to NVCC flags.
+
+# Unset any cached CUDA_NVCC_FLAGS that may contain space-separated entries
+# (libtorch's cmake rejects entries with spaces)
+unset(CUDA_NVCC_FLAGS CACHE)
+set(CUDA_NVCC_FLAGS "" CACHE STRING "NVCC flags" FORCE)
 
 # CUDA 13.x removed nvToolsExt (NVTX v1). libtorch's cmake checks for CUDA::nvToolsExt target.
 # Create a stub interface target so libtorch's check passes.
