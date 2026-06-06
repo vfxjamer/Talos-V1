@@ -38,12 +38,13 @@ log("LibTorch")
 libtorch_dir = os.path.join(LOCAL_DIR, "libtorch")
 if not os.path.exists(libtorch_dir):
     apt_install("wget unzip")
-    # Try cu117 (CUDA 11.7) - best match for Kaggle's CUDA 13.3 runtime
-    # Note: literal + in URL works better than %2B with wget
+    # PyTorch 2.1.0 URLs are dead. Use 2.7.0 which is current stable.
+    # cu126 is best match for Kaggle's CUDA 13.3 runtime.
     libtorch_urls = [
-        "https://download.pytorch.org/libtorch/cu117/libtorch-cxx11-abi-shared-with-deps-2.1.0+cu117.zip",
-        "https://download.pytorch.org/libtorch/cu121/libtorch-cxx11-abi-shared-with-deps-2.1.0+cu121.zip",
-        "https://download.pytorch.org/libtorch/cpu/libtorch-cxx11-abi-shared-with-deps-2.1.0+cpu.zip",
+        "https://download.pytorch.org/libtorch/cu126/libtorch-cxx11-abi-shared-with-deps-2.7.0+cu126.zip",
+        "https://download.pytorch.org/libtorch/cu128/libtorch-cxx11-abi-shared-with-deps-2.7.0+cu128.zip",
+        "https://download.pytorch.org/libtorch/cu118/libtorch-cxx11-abi-shared-with-deps-2.7.0+cu118.zip",
+        "https://download.pytorch.org/libtorch/cpu/libtorch-cxx11-abi-shared-with-deps-2.7.0+cpu.zip",
     ]
     downloaded = False
     for url in libtorch_urls:
