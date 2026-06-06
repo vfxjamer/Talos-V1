@@ -77,6 +77,11 @@ if os.path.exists(BUILD_DIR):
 os.environ["CMAKE_PREFIX_PATH"] = libtorch_dir
 # Set CUDA arch list for T4 (sm_75) to skip detection test
 os.environ["TORCH_CUDA_ARCH_LIST"] = "7.5"
+# Print which nvcc is being used
+print(f"PATH: {os.environ['PATH']}", flush=True)
+print(f"which nvcc: {subprocess.run(['which', 'nvcc'], capture_output=True, text=True).stdout.strip()}", flush=True)
+print(f"nvcc --version: {subprocess.run(['nvcc', '--version'], capture_output=True, text=True).stdout.strip()}", flush=True)
+print(f"ptxas --version: {subprocess.run(['ptxas', '--version'], capture_output=True, text=True).stderr.strip()}", flush=True)
 result = subprocess.run(
     ["cmake", "-B", BUILD_DIR, "-DCMAKE_BUILD_TYPE=Release",
      "-DCMAKE_CUDA_FLAGS=-std=c++17",
