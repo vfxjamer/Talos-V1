@@ -50,13 +50,17 @@ else:
 # ── CUDA ───────────────────────────────────────────────────
 log("CUDA")
 cuda_found = False
-# Kaggle has CUDA 11.5 at /usr by default
-for d in ["/usr/local/cuda-11", "/usr/local/cuda", "/usr"]:
+# Prefer /usr/local/cuda (newer CUDA on Kaggle) over /usr/lib/nvidia-cuda-toolkit (older split package)
+for d in ["/usr/local/cuda-12", "/usr/local/cuda", "/usr/local/cuda-11"]:
     if os.path.isdir(d) and os.path.isfile(os.path.join(d, "bin/nvcc")):
         os.environ["CUDA_TOOLKIT_ROOT_DIR"] = d
+        # Put this CUDA first in PATH to override the old split nvidia-cuda-toolkit
         os.environ["PATH"] = f"{d}/bin:{os.environ.get('PATH', '')}"
         os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
+        # Print nvcc version
+        nvcc_ver = subprocess.run([f"{d}/bin/nvcc", "--version"], capture_output=True, text=True)
         print(f"Found CUDA at {d}", flush=True)
+        print(f"nvcc version: {nvcc_ver.stdout.strip()}", flush=True)
         cuda_found = True
         break
 
