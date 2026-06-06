@@ -17,6 +17,7 @@ GGL::MetricSender::MetricSender(std::string _projectName, std::string _groupName
 		auto sys = py::module::import("sys");
 		auto sysPath = sys.attr("path");
 		namespace fs = std::filesystem;
+		// Get directory of the binary itself
 		std::vector<std::string> searchPaths = {
 			fs::current_path().string(),
 			(fs::current_path() / "python_scripts").string(),
@@ -24,13 +25,23 @@ GGL::MetricSender::MetricSender(std::string _projectName, std::string _groupName
 			"/kaggle/working/talos",
 			"/kaggle/working/talos/python_scripts",
 			"/kaggle/working/talos/build",
+			"/kaggle/working/talos/thirdparty/GigaLearnCPP-Leak/GigaLearnCPP/python_scripts",
 		};
 		for (const auto& p : searchPaths) {
 			if (fs::exists(p)) {
 				sysPath.attr("append")(p);
 			}
 		}
-		pyMod = py::module::import("python_scripts.metric_receiver");
+		// Try package import first, then flat import
+		try {
+			pyMod = py::module::import("python_scripts.metric_receiver");
+		} catch (std::exception& e1) {
+			try {
+				pyMod = py::module::import("metric_receiver");
+			} catch (std::exception& e2) {
+				throw std::runtime_error(std::string(e1.what()) + " | " + e2.what());
+			}
+		}
 	} catch (std::exception& e) {
 		RG_ERR_CLOSE("MetricSender: Failed to import metrics receiver, exception: " << e.what());
 	}
