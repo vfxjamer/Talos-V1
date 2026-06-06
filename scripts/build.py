@@ -66,7 +66,30 @@ if not cuda_found:
     run(["wget", "-q", "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb", "-O", "/tmp/cuda-keyring.deb"])
     run(["dpkg", "-i", "/tmp/cuda-keyring.deb"])
     run(["apt-get", "update", "-qq", "-oDPkg::Lock::Timeout=120"])
-    apt_install("cuda-toolkit-12-1 cuda-nvtx-12-1 cuda-cublas-dev-12-1")
+    # Try installing CUDA 12.1 packages with verbose output to see errors
+    print("Installing CUDA 12.1 packages...", flush=True)
+    env = os.environ.copy()
+    env["DEBIAN_FRONTEND"] = "noninteractive"
+    result = subprocess.run(
+        ["apt-get", "install", "-y", "-oDPkg::Lock::Timeout=120", "--no-install-recommends",
+         "cuda-toolkit-12-1", "cuda-nvtx-12-1", "cuda-cublas-dev-12-1"],
+        cwd=LOCAL_DIR, capture_output=False, env=env
+    )
+    if result.returncode != 0:
+        print("CUDA 12.1 package install failed, trying alternative package names...", flush=True)
+        # Try alternative package names or fall back to default
+        result = subprocess.run(
+            ["apt-get", "install", "-y", "-oDPkg::Lock::Timeout=120", "--no-install-recommends",
+             "cuda-12-1", "cuda-nvtx-12-1", "cuda-cublas-12-1"],
+            cwd=LOCAL_DIR, capture_output=False, env=env
+        )
+        if result.returncode != 0:
+            print("Alternative packages failed, trying meta-package...", flush=True)
+            result = subprocess.run(
+                ["apt-get", "install", "-y", "-oDPkg::Lock::Timeout=120", "--no-install-recommends",
+                 "cuda"],
+                cwd=LOCAL_DIR, capture_output=False, env=env
+            )
     # Verify installation
     for d in ["/usr/local/cuda-12", "/usr/local/cuda", "/usr/local/cuda-12.1"]:
         if os.path.isdir(d) and os.path.isfile(os.path.join(d, "bin/nvcc")):
