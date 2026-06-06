@@ -82,18 +82,22 @@ if not cuda_found:
 
 # ── NVTX (NVIDIA Tools Extension) ─────────────────────────
 log("NVTX")
-# nvToolsExt is needed by libtorch. Install if missing.
-apt_install("libnvtx-dev")
-# Also check if header exists, create symlink if needed
+cuda_root = os.environ.get("CUDA_TOOLKIT_ROOT_DIR", "/usr/local/cuda")
+# CUDA 13.x has NVTX at include/nvtx3/ but libtorch expects old-style nvToolsExt.h
+# Create symlinks for compatibility
 import glob as _glob
-nvtx_headers = _glob.glob(f"{os.environ['CUDA_TOOLKIT_ROOT_DIR']}/include/nvtx3/**/*.h", recursive=True)
-if not nvtx_headers:
-    # Check for older NVTX header
-    for h in ["nvToolsExt.h", "nvtx3/nvToolsExt.h"]:
-        for d in [f"{os.environ['CUDA_TOOLKIT_ROOT_DIR']}/include", "/usr/include"]:
-            if os.path.isfile(f"{d}/{h}"):
-                print(f"Found NVTX header: {d}/{h}", flush=True)
-                break
+nvtx3_dir = f"{cuda_root}/include/nvtx3"
+if os.path.isdir(nvtx3_dir):
+    print(f"Found NVTX v3 headers at {nvtx3_dir}", flush=True)
+    # Create nvtx3 symlink in /usr/local/cuda/include if not there
+    # libtorch's cmake looks for nvtx3/nvToolsExt.h
+    target_header = f"{nvtx3_dir}/nvToolsExt.h"
+    if not os.path.isfile(target_header):
+        # Try to find the actual header
+        candidates = _glob.glob(f"{nvtx3_dir}/*.h")
+        print(f"NVTX headers available: {candidates}", flush=True)
+else:
+    print(f"WARNING: NVTX v3 not found at {nvtx3_dir}", flush=True)
 
 # ── cmake configure ────────────────────────────────────────
 log("cmake configure")
