@@ -77,6 +77,7 @@ result = subprocess.run(
     ["cmake", "-B", BUILD_DIR, "-DCMAKE_BUILD_TYPE=Release",
      "-DCMAKE_CUDA_FLAGS=-std=c++17",
      "-DCMAKE_CUDA_STANDARD=17",
+     "-DCMAKE_CUDA_ARCHITECTURES=75",
      "-DTORCH_CUDA_ARCH_LIST=7.5"],
     cwd=LOCAL_DIR, capture_output=True, text=True
 )

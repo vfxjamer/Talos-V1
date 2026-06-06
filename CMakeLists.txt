@@ -5,6 +5,9 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# T4 has compute capability 7.5 (Turing) - set explicitly to avoid auto-detection issues
+set(CMAKE_CUDA_ARCHITECTURES "75" CACHE STRING "CUDA architectures" FORCE)
+
 # CUDA 11.5's nvcc doesn't support C++20, so use C++17 for CUDA test compiles
 # but keep C++20 for host code (needed by RLGymCPP ThreadPool.h concepts)
 set(CMAKE_CUDA_STANDARD 17 CACHE STRING "CUDA C++ standard" FORCE)
