@@ -50,11 +50,11 @@ else:
 # ── CUDA ───────────────────────────────────────────────────
 log("CUDA")
 cuda_found = False
-# Prefer /usr/local/cuda (newer CUDA on Kaggle) over /usr/lib/nvidia-cuda-toolkit (older split package)
+# Prefer /usr/local/cuda (CUDA 13.3 on Kaggle) over /usr/lib/nvidia-cuda-toolkit (broken stub)
 for d in ["/usr/local/cuda-12", "/usr/local/cuda", "/usr/local/cuda-11"]:
     if os.path.isdir(d) and os.path.isfile(os.path.join(d, "bin/nvcc")):
         os.environ["CUDA_TOOLKIT_ROOT_DIR"] = d
-        # Put this CUDA first in PATH to override the old split nvidia-cuda-toolkit
+        # Put this CUDA first in PATH to override the old broken nvidia-cuda-toolkit
         os.environ["PATH"] = f"{d}/bin:{os.environ.get('PATH', '')}"
         os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
         # Force ptxas and nvcc to use the newer versions
@@ -62,6 +62,14 @@ for d in ["/usr/local/cuda-12", "/usr/local/cuda", "/usr/local/cuda-11"]:
             os.environ["CUDA_PTXAS_EXECUTABLE"] = f"{d}/bin/ptxas"
         if os.path.isfile(f"{d}/bin/nvcc"):
             os.environ["CMAKE_CUDA_COMPILER"] = f"{d}/bin/nvcc"
+        # Remove /usr/bin/nvcc symlink that points to broken stub
+        # This forces cmake to use our specified CMAKE_CUDA_COMPILER
+        if os.path.islink("/usr/bin/nvcc") or os.path.exists("/usr/bin/nvcc"):
+            try:
+                os.remove("/usr/bin/nvcc")
+                print("Removed /usr/bin/nvcc stub", flush=True)
+            except:
+                pass
         # Print nvcc version
         nvcc_ver = subprocess.run([f"{d}/bin/nvcc", "--version"], capture_output=True, text=True)
         print(f"Found CUDA at {d}", flush=True)
@@ -89,6 +97,7 @@ print(f"nvcc --version: {subprocess.run(['nvcc', '--version'], capture_output=Tr
 print(f"ptxas --version: {subprocess.run(['ptxas', '--version'], capture_output=True, text=True).stderr.strip()}", flush=True)
 result = subprocess.run(
     ["cmake", "-B", BUILD_DIR, "-DCMAKE_BUILD_TYPE=Release",
+     "-DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc",
      "-DCMAKE_CUDA_FLAGS=-std=c++17",
      "-DCMAKE_CUDA_STANDARD=17",
      "-DCMAKE_CUDA_ARCHITECTURES=75",
