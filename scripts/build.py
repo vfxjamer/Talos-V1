@@ -57,6 +57,11 @@ for d in ["/usr/local/cuda-12", "/usr/local/cuda", "/usr/local/cuda-11"]:
         # Put this CUDA first in PATH to override the old split nvidia-cuda-toolkit
         os.environ["PATH"] = f"{d}/bin:{os.environ.get('PATH', '')}"
         os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
+        # Force ptxas and nvcc to use the newer versions
+        if os.path.isfile(f"{d}/bin/ptxas"):
+            os.environ["CUDA_PTXAS_EXECUTABLE"] = f"{d}/bin/ptxas"
+        if os.path.isfile(f"{d}/bin/nvcc"):
+            os.environ["CMAKE_CUDA_COMPILER"] = f"{d}/bin/nvcc"
         # Print nvcc version
         nvcc_ver = subprocess.run([f"{d}/bin/nvcc", "--version"], capture_output=True, text=True)
         print(f"Found CUDA at {d}", flush=True)
