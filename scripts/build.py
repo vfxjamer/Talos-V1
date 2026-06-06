@@ -38,8 +38,9 @@ log("LibTorch")
 libtorch_dir = os.path.join(LOCAL_DIR, "libtorch")
 if not os.path.exists(libtorch_dir):
     apt_install("wget unzip")
+    # Use cu117 to match Kaggle's default CUDA 11.5
     run(["wget", "-q", "--show-progress",
-         "https://download.pytorch.org/libtorch/cu121/libtorch-cxx11-abi-shared-with-deps-2.1.0%2Bcu121.zip",
+         "https://download.pytorch.org/libtorch/cu117/libtorch-cxx11-abi-shared-with-deps-2.1.0%2Bcu117.zip",
          "-O", "/tmp/libtorch.zip"])
     run(["unzip", "-q", "/tmp/libtorch.zip", "-d", LOCAL_DIR])
     os.remove("/tmp/libtorch.zip")
@@ -49,7 +50,8 @@ else:
 # ── CUDA ───────────────────────────────────────────────────
 log("CUDA")
 cuda_found = False
-for d in ["/usr/local/cuda-12", "/usr/local/cuda", "/usr/local/cuda-12.1"]:
+# Kaggle has CUDA 11.5 at /usr by default
+for d in ["/usr/local/cuda-11", "/usr/local/cuda", "/usr"]:
     if os.path.isdir(d) and os.path.isfile(os.path.join(d, "bin/nvcc")):
         os.environ["CUDA_TOOLKIT_ROOT_DIR"] = d
         os.environ["PATH"] = f"{d}/bin:{os.environ.get('PATH', '')}"
@@ -59,48 +61,7 @@ for d in ["/usr/local/cuda-12", "/usr/local/cuda", "/usr/local/cuda-12.1"]:
         break
 
 if not cuda_found:
-    print("CUDA 12 not found, installing CUDA 12.1 from NVIDIA repo...", flush=True)
-    # Install CUDA 12.1 from NVIDIA repository (matches libtorch cu121)
-    run(["apt-get", "update", "-qq", "-oDPkg::Lock::Timeout=120"])
-    apt_install("wget gnupg2 software-properties-common")
-    run(["wget", "-q", "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb", "-O", "/tmp/cuda-keyring.deb"])
-    run(["dpkg", "-i", "/tmp/cuda-keyring.deb"])
-    run(["apt-get", "update", "-qq", "-oDPkg::Lock::Timeout=120"])
-    # Try installing CUDA 12.1 packages with verbose output to see errors
-    print("Installing CUDA 12.1 packages...", flush=True)
-    env = os.environ.copy()
-    env["DEBIAN_FRONTEND"] = "noninteractive"
-    result = subprocess.run(
-        ["apt-get", "install", "-y", "-oDPkg::Lock::Timeout=120", "--no-install-recommends",
-         "cuda-toolkit-12-1", "cuda-nvtx-12-1", "cuda-cublas-dev-12-1"],
-        cwd=LOCAL_DIR, capture_output=False, env=env
-    )
-    if result.returncode != 0:
-        print("CUDA 12.1 package install failed, trying alternative package names...", flush=True)
-        # Try alternative package names or fall back to default
-        result = subprocess.run(
-            ["apt-get", "install", "-y", "-oDPkg::Lock::Timeout=120", "--no-install-recommends",
-             "cuda-12-1", "cuda-nvtx-12-1", "cuda-cublas-12-1"],
-            cwd=LOCAL_DIR, capture_output=False, env=env
-        )
-        if result.returncode != 0:
-            print("Alternative packages failed, trying meta-package...", flush=True)
-            result = subprocess.run(
-                ["apt-get", "install", "-y", "-oDPkg::Lock::Timeout=120", "--no-install-recommends",
-                 "cuda"],
-                cwd=LOCAL_DIR, capture_output=False, env=env
-            )
-    # Verify installation
-    for d in ["/usr/local/cuda-12", "/usr/local/cuda", "/usr/local/cuda-12.1"]:
-        if os.path.isdir(d) and os.path.isfile(os.path.join(d, "bin/nvcc")):
-            os.environ["CUDA_TOOLKIT_ROOT_DIR"] = d
-            os.environ["PATH"] = f"{d}/bin:{os.environ.get('PATH', '')}"
-            os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
-            print(f"Found CUDA at {d} after install", flush=True)
-            cuda_found = True
-            break
-    if not cuda_found:
-        print("WARNING: CUDA 12 still not found after install!", flush=True)
+    print("WARNING: CUDA not found!", flush=True)
 
 # ── cmake configure ────────────────────────────────────────
 log("cmake configure")
