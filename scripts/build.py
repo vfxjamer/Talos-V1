@@ -48,15 +48,30 @@ else:
 
 # ── CUDA ───────────────────────────────────────────────────
 log("CUDA")
+cuda_found = False
 for d in ["/usr/local/cuda-12", "/usr/local/cuda", "/usr/local/cuda-12.1"]:
     if os.path.isdir(d) and os.path.isfile(os.path.join(d, "bin/nvcc")):
         os.environ["CUDA_TOOLKIT_ROOT_DIR"] = d
         os.environ["PATH"] = f"{d}/bin:{os.environ.get('PATH', '')}"
         os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
         print(f"Found CUDA at {d}", flush=True)
+        cuda_found = True
         break
-else:
-    print("WARNING: CUDA 12 not found!", flush=True)
+
+if not cuda_found:
+    print("CUDA toolkit not found, installing nvidia-cuda-toolkit...", flush=True)
+    apt_install("nvidia-cuda-toolkit")
+    # Verify installation
+    for d in ["/usr/local/cuda-12", "/usr/local/cuda", "/usr/local/cuda-12.1"]:
+        if os.path.isdir(d) and os.path.isfile(os.path.join(d, "bin/nvcc")):
+            os.environ["CUDA_TOOLKIT_ROOT_DIR"] = d
+            os.environ["PATH"] = f"{d}/bin:{os.environ.get('PATH', '')}"
+            os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
+            print(f"Found CUDA at {d} after install", flush=True)
+            cuda_found = True
+            break
+    if not cuda_found:
+        print("WARNING: CUDA 12 still not found after install!", flush=True)
 
 # ── cmake configure ────────────────────────────────────────
 log("cmake configure")
