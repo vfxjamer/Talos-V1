@@ -101,10 +101,17 @@ def parse_with_boxcars(replay_path, max_frames, skip_frames):
     return frames_out
 
 def parse_with_carball_old(replay_path, max_frames, skip_frames):
-    """Fallback: use carball's protobuf-based DecompileReplay (carball < 0.7)."""
+    """Fallback: use carball's protobuf-based decompile_replay (newer carball API)."""
     import carball
-    game = carball.DecompileReplay(replay_path)
-    proto = game.get_protobuf_data()
+    # Newer carball (>= 0.7) uses snake_case decompile_replay instead of DecompileReplay
+    if hasattr(carball, "decompile_replay"):
+        game = carball.decompile_replay(replay_path)
+        proto = game.get_protobuf_data()
+    elif hasattr(carball, "DecompileReplay"):
+        game = carball.DecompileReplay(replay_path)
+        proto = game.get_protobuf_data()
+    else:
+        raise RuntimeError("carball API not recognized")
 
     players = list(proto.players)
     if len(players) < 2:
