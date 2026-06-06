@@ -37,9 +37,9 @@ apt_install("cmake build-essential pkg-config")
 log("LibTorch")
 libtorch_dir = os.path.join(LOCAL_DIR, "libtorch")
 if not os.path.exists(libtorch_dir):
+    # Try wget first (fast, direct from PyTorch CDN)
     apt_install("wget unzip")
     # PyTorch 2.1.0 URLs are dead. Use 2.7.0 which is current stable.
-    # cu126 is best match for Kaggle's CUDA 13.3 runtime.
     libtorch_urls = [
         "https://download.pytorch.org/libtorch/cu126/libtorch-cxx11-abi-shared-with-deps-2.7.0+cu126.zip",
         "https://download.pytorch.org/libtorch/cu128/libtorch-cxx11-abi-shared-with-deps-2.7.0+cu128.zip",
@@ -48,7 +48,7 @@ if not os.path.exists(libtorch_dir):
     ]
     downloaded = False
     for url in libtorch_urls:
-        print(f"Trying {url} ...", flush=True)
+        print(f"Trying wget {url} ...", flush=True)
         result = subprocess.run(
             ["wget", "-q", "--show-progress", url, "-O", "/tmp/libtorch.zip"],
             capture_output=False
@@ -61,10 +61,27 @@ if not os.path.exists(libtorch_dir):
             print(f"  Failed (exit {result.returncode})", flush=True)
             if os.path.exists("/tmp/libtorch.zip"):
                 os.remove("/tmp/libtorch.zip")
+
     if not downloaded:
-        raise RuntimeError("Failed to download LibTorch from any URL")
-    run(["unzip", "-q", "/tmp/libtorch.zip", "-d", LOCAL_DIR])
-    os.remove("/tmp/libtorch.zip")
+        # Fallback: install via pip and use its libtorch structure
+        # pip-installed torch has the same layout as libtorch (share/cmake/Torch, lib/, include/)
+        print("wget failed. Falling back to pip install torch...", flush=True)
+        run(["pip", "install", "--quiet", "torch==2.7.0", "--index-url", "https://download.pytorch.org/whl/cu126"])
+        # Find the installed torch location
+        result = subprocess.run(
+            ["python", "-c", "import torch, os; print(os.path.dirname(torch.__file__))"],
+            capture_output=True, text=True
+        )
+        torch_path = result.stdout.strip()
+        if not torch_path or not os.path.exists(torch_path):
+            raise RuntimeError("Failed to install torch via pip")
+        # pip-installed torch has same layout as libtorch: share/cmake/Torch, lib/, include/
+        # So we can use it directly as CMAKE_PREFIX_PATH
+        libtorch_dir = torch_path
+        print(f"Using pip-installed torch at {torch_path}", flush=True)
+    else:
+        run(["unzip", "-q", "/tmp/libtorch.zip", "-d", LOCAL_DIR])
+        os.remove("/tmp/libtorch.zip")
 else:
     print("LibTorch already cached", flush=True)
 
