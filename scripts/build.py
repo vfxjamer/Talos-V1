@@ -38,10 +38,30 @@ log("LibTorch")
 libtorch_dir = os.path.join(LOCAL_DIR, "libtorch")
 if not os.path.exists(libtorch_dir):
     apt_install("wget unzip")
-    # Use cu117 to match Kaggle's default CUDA 11.5
-    run(["wget", "-q", "--show-progress",
-         "https://download.pytorch.org/libtorch/cu117/libtorch-cxx11-abi-shared-with-deps-2.1.0%2Bcu117.zip",
-         "-O", "/tmp/libtorch.zip"])
+    # Try cu117 (CUDA 11.7) - best match for Kaggle's CUDA 13.3 runtime
+    # Note: literal + in URL works better than %2B with wget
+    libtorch_urls = [
+        "https://download.pytorch.org/libtorch/cu117/libtorch-cxx11-abi-shared-with-deps-2.1.0+cu117.zip",
+        "https://download.pytorch.org/libtorch/cu121/libtorch-cxx11-abi-shared-with-deps-2.1.0+cu121.zip",
+        "https://download.pytorch.org/libtorch/cpu/libtorch-cxx11-abi-shared-with-deps-2.1.0+cpu.zip",
+    ]
+    downloaded = False
+    for url in libtorch_urls:
+        print(f"Trying {url} ...", flush=True)
+        result = subprocess.run(
+            ["wget", "-q", "--show-progress", url, "-O", "/tmp/libtorch.zip"],
+            capture_output=False
+        )
+        if result.returncode == 0 and os.path.exists("/tmp/libtorch.zip") and os.path.getsize("/tmp/libtorch.zip") > 1000000:
+            print(f"Downloaded from {url}", flush=True)
+            downloaded = True
+            break
+        else:
+            print(f"  Failed (exit {result.returncode})", flush=True)
+            if os.path.exists("/tmp/libtorch.zip"):
+                os.remove("/tmp/libtorch.zip")
+    if not downloaded:
+        raise RuntimeError("Failed to download LibTorch from any URL")
     run(["unzip", "-q", "/tmp/libtorch.zip", "-d", LOCAL_DIR])
     os.remove("/tmp/libtorch.zip")
 else:
