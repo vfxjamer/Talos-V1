@@ -98,7 +98,10 @@ for line in proc.stdout:
         pct = int(m.group(1).strip())
         bar.n = pct
         bar.refresh()
-    else:
+    # Always print errors
+    if "error:" in line.lower() or "warning:" in line.lower():
+        print(line, flush=True)
+    elif not m:
         print(line, flush=True)
 
 bar.close()
