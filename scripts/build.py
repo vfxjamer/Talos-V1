@@ -66,8 +66,13 @@ if not cuda_found:
 # ── cmake configure ────────────────────────────────────────
 log("cmake configure")
 os.environ["CMAKE_PREFIX_PATH"] = libtorch_dir
+# Set CUDA arch list for T4 (sm_75) to skip detection test
+os.environ["TORCH_CUDA_ARCH_LIST"] = "7.5"
 result = subprocess.run(
-    ["cmake", "-B", BUILD_DIR, "-DCMAKE_BUILD_TYPE=Release", "-DCMAKE_CUDA_FLAGS=-std=c++20", "-DCMAKE_CUDA_STANDARD=20"],
+    ["cmake", "-B", BUILD_DIR, "-DCMAKE_BUILD_TYPE=Release",
+     "-DCMAKE_CUDA_FLAGS=-std=c++20",
+     "-DCMAKE_CUDA_STANDARD=20",
+     "-DTORCH_CUDA_ARCH_LIST=7.5"],
     cwd=LOCAL_DIR, capture_output=True, text=True
 )
 print("STDOUT:", result.stdout)
