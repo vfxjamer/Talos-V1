@@ -80,6 +80,21 @@ for d in ["/usr/local/cuda-12", "/usr/local/cuda", "/usr/local/cuda-11"]:
 if not cuda_found:
     print("WARNING: CUDA not found!", flush=True)
 
+# ── NVTX (NVIDIA Tools Extension) ─────────────────────────
+log("NVTX")
+# nvToolsExt is needed by libtorch. Install if missing.
+apt_install("libnvtx-dev")
+# Also check if header exists, create symlink if needed
+import glob as _glob
+nvtx_headers = _glob.glob(f"{os.environ['CUDA_TOOLKIT_ROOT_DIR']}/include/nvtx3/**/*.h", recursive=True)
+if not nvtx_headers:
+    # Check for older NVTX header
+    for h in ["nvToolsExt.h", "nvtx3/nvToolsExt.h"]:
+        for d in [f"{os.environ['CUDA_TOOLKIT_ROOT_DIR']}/include", "/usr/include"]:
+            if os.path.isfile(f"{d}/{h}"):
+                print(f"Found NVTX header: {d}/{h}", flush=True)
+                break
+
 # ── cmake configure ────────────────────────────────────────
 log("cmake configure")
 # Clean any previous failed cmake cache
