@@ -5,11 +5,12 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# CUDA 11.5 needs explicit C++20 flag for nvcc - set BEFORE subdirectory
-set(CMAKE_CUDA_STANDARD 20 CACHE STRING "CUDA C++ standard" FORCE)
+# CUDA 11.5's nvcc doesn't support C++20, so use C++17 for CUDA test compiles
+# but keep C++20 for host code (needed by RLGymCPP ThreadPool.h concepts)
+set(CMAKE_CUDA_STANDARD 17 CACHE STRING "CUDA C++ standard" FORCE)
 set(CMAKE_CUDA_STANDARD_REQUIRED ON CACHE BOOL "Require CUDA standard" FORCE)
-set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -std=c++20" CACHE STRING "CUDA flags" FORCE)
-set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -std=c++20" CACHE STRING "NVCC flags" FORCE)
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -std=c++17" CACHE STRING "CUDA flags" FORCE)
+set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -std=c++17" CACHE STRING "NVCC flags" FORCE)
 
 add_subdirectory(thirdparty/GigaLearnCPP-Leak/GigaLearnCPP)
 

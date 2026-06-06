@@ -70,8 +70,8 @@ os.environ["CMAKE_PREFIX_PATH"] = libtorch_dir
 os.environ["TORCH_CUDA_ARCH_LIST"] = "7.5"
 result = subprocess.run(
     ["cmake", "-B", BUILD_DIR, "-DCMAKE_BUILD_TYPE=Release",
-     "-DCMAKE_CUDA_FLAGS=-std=c++20",
-     "-DCMAKE_CUDA_STANDARD=20",
+     "-DCMAKE_CUDA_FLAGS=-std=c++17",
+     "-DCMAKE_CUDA_STANDARD=17",
      "-DTORCH_CUDA_ARCH_LIST=7.5"],
     cwd=LOCAL_DIR, capture_output=True, text=True
 )
