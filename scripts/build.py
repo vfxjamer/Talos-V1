@@ -59,8 +59,14 @@ for d in ["/usr/local/cuda-12", "/usr/local/cuda", "/usr/local/cuda-12.1"]:
         break
 
 if not cuda_found:
-    print("CUDA toolkit not found, installing nvidia-cuda-toolkit...", flush=True)
-    apt_install("nvidia-cuda-toolkit")
+    print("CUDA 12 not found, installing CUDA 12.1 from NVIDIA repo...", flush=True)
+    # Install CUDA 12.1 from NVIDIA repository (matches libtorch cu121)
+    run(["apt-get", "update", "-qq", "-oDPkg::Lock::Timeout=120"])
+    apt_install("wget gnupg2 software-properties-common")
+    run(["wget", "-q", "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb", "-O", "/tmp/cuda-keyring.deb"])
+    run(["dpkg", "-i", "/tmp/cuda-keyring.deb"])
+    run(["apt-get", "update", "-qq", "-oDPkg::Lock::Timeout=120"])
+    apt_install("cuda-toolkit-12-1 cuda-nvtx-12-1 cuda-cublas-dev-12-1")
     # Verify installation
     for d in ["/usr/local/cuda-12", "/usr/local/cuda", "/usr/local/cuda-12.1"]:
         if os.path.isdir(d) and os.path.isfile(os.path.join(d, "bin/nvcc")):
