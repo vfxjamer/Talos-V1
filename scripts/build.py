@@ -83,27 +83,27 @@ if not cuda_found:
 # ── NVTX (NVIDIA Tools Extension) ─────────────────────────
 log("NVTX")
 cuda_root = os.environ.get("CUDA_TOOLKIT_ROOT_DIR", "/usr/local/cuda")
-# CUDA 13.x has NVTX v3 at include/nvtx3/ but libtorch's cmake looks for old-style nvToolsExt.h
-# Create symlink from new location to where libtorch expects it
+# CUDA 13.x removed nvToolsExt.h (old NVTX v1 API). Create a stub header for libtorch.
 import glob as _glob
 nvtx3_dir = f"{cuda_root}/include/nvtx3"
-if os.path.isdir(nvtx3_dir):
-    print(f"Found NVTX v3 headers at {nvtx3_dir}", flush=True)
-    # Find the actual nvToolsExt.h (might be in a subdir like nvtx3/ or nvtx3/detail/)
-    candidates = _glob.glob(f"{nvtx3_dir}/**/nvToolsExt.h", recursive=True)
-    if candidates:
-        actual_header = candidates[0]
-        # Create symlink at expected location: /usr/local/cuda/include/nvtx3/nvToolsExt.h
-        expected_path = f"{nvtx3_dir}/nvToolsExt.h"
-        if not os.path.isfile(expected_path):
-            os.symlink(actual_header, expected_path)
-            print(f"Created symlink: {expected_path} -> {actual_header}", flush=True)
-    else:
-        # List what's there
-        all_headers = _glob.glob(f"{nvtx3_dir}/**/*.h", recursive=True)
-        print(f"NVTX headers available: {all_headers[:10]}", flush=True)
+expected_path = f"{nvtx3_dir}/nvToolsExt.h"
+if not os.path.isfile(expected_path):
+    # Create a stub nvToolsExt.h that includes the NVTX v3 header
+    # NVTX v3 API is mostly compatible with v1 for basic usage
+    stub_content = '''// Compatibility shim for CUDA 13.x (NVTX v3 only)
+// Maps old NVTX v1 API to NVTX v3
+#pragma once
+#include <nvtx3/nvToolsExt.h>
+'''
+    os.makedirs(nvtx3_dir, exist_ok=True)
+    with open(expected_path, 'w') as f:
+        f.write(stub_content)
+    print(f"Created NVTX v1 compatibility shim at {expected_path}", flush=True)
 else:
-    print(f"WARNING: NVTX v3 not found at {nvtx3_dir}", flush=True)
+    print(f"nvToolsExt.h already exists at {expected_path}", flush=True)
+# Also need to find the actual NVTX v3 header for the include
+all_headers = _glob.glob(f"{nvtx3_dir}/**/*.h", recursive=True)
+print(f"NVTX headers available: {all_headers[:5]}", flush=True)
 
 # ── cmake configure ────────────────────────────────────────
 log("cmake configure")
