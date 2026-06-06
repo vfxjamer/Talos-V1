@@ -66,7 +66,12 @@ if not cuda_found:
 # ── cmake configure ────────────────────────────────────────
 log("cmake configure")
 os.environ["CMAKE_PREFIX_PATH"] = libtorch_dir
-run(["cmake", "-B", BUILD_DIR, "-DCMAKE_BUILD_TYPE=Release"])
+result = subprocess.run(
+    ["cmake", "-B", BUILD_DIR, "-DCMAKE_BUILD_TYPE=Release"],
+    cwd=LOCAL_DIR, capture_output=False
+)
+if result.returncode != 0:
+    raise subprocess.CalledProcessError(result.returncode, ["cmake", "-B", BUILD_DIR])
 
 # ── cmake build ────────────────────────────────────────────
 log("cmake build")
