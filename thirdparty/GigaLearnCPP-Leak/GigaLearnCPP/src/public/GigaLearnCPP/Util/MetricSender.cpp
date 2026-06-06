@@ -2,6 +2,8 @@
 
 #include "Timer.h"
 
+#include <filesystem>
+
 namespace py = pybind11;
 using namespace GGL;
 
@@ -11,6 +13,23 @@ GGL::MetricSender::MetricSender(std::string _projectName, std::string _groupName
 	RG_LOG("Initializing MetricSender...");
 
 	try {
+		// Add common search paths to sys.path so python_scripts can be found
+		auto sys = py::module::import("sys");
+		auto sysPath = sys.attr("path");
+		namespace fs = std::filesystem;
+		std::vector<std::string> searchPaths = {
+			fs::current_path().string(),
+			(fs::current_path() / "python_scripts").string(),
+			(fs::current_path().parent_path() / "python_scripts").string(),
+			"/kaggle/working/talos",
+			"/kaggle/working/talos/python_scripts",
+			"/kaggle/working/talos/build",
+		};
+		for (const auto& p : searchPaths) {
+			if (fs::exists(p)) {
+				sysPath.attr("append")(p);
+			}
+		}
 		pyMod = py::module::import("python_scripts.metric_receiver");
 	} catch (std::exception& e) {
 		RG_ERR_CLOSE("MetricSender: Failed to import metrics receiver, exception: " << e.what());
