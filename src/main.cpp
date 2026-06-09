@@ -218,6 +218,8 @@ int main(int argc, char* argv[]) {
 	if (!replayPath.empty())
 		g_replayPath = replayPath;
 
+	cfg.sendMetrics = false;
+
 	RG_LOG(RG_DIVIDER);
 	RG_LOG("=== TALOS v1 ===");
 	RG_LOG("  Phase: " << (phaseIdx + 1) << "/4");
