@@ -1,28 +1,25 @@
 cmake_minimum_required(VERSION 3.8)
-project("Talos" CXX CUDA)
+
+# Use pip-installed torch as libtorch
+set(TORCH_INSTALL_PREFIX "C:/Users/mypc2/AppData/Local/Programs/Python/Python310/Lib/site-packages/torch" CACHE PATH "Path to libtorch (pip-installed torch)")
+
+project("Talos" CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# T4 has compute capability 7.5 (Turing) - set explicitly to avoid auto-detection issues
-set(CMAKE_CUDA_ARCHITECTURES "75" CACHE STRING "CUDA architectures" FORCE)
+# Use pip-installed torch for libtorch
+list(APPEND CMAKE_PREFIX_PATH "${TORCH_INSTALL_PREFIX}/share/cmake")
 
-# We're using CUDA 13.3 which supports C++20, so we don't need separate CUDA standard.
-# Do NOT set CMAKE_CUDA_STANDARD or append to CUDA_NVCC_FLAGS with spaces — libtorch's cmake
-# rejects CUDA_NVCC_FLAGS entries containing spaces.
-
-# CUDA 13.x removed nvToolsExt (NVTX v1). libtorch's cmake checks for CUDA::nvToolsExt target.
-# Create a stub interface target so libtorch's check passes.
-if(NOT TARGET CUDA::nvToolsExt)
-    add_library(CUDA::nvToolsExt INTERFACE IMPORTED)
-    if(EXISTS "/usr/local/cuda/include/nvtx3")
-        set_property(TARGET CUDA::nvToolsExt PROPERTY INTERFACE_INCLUDE_DIRECTORIES "/usr/local/cuda/include")
-    endif()
-    if(EXISTS "/usr/local/cuda/lib64/libnvToolsExt.so")
-        set_property(TARGET CUDA::nvToolsExt PROPERTY INTERFACE_LINK_LIBRARIES "/usr/local/cuda/lib64/libnvToolsExt.so")
-    endif()
-    message(STATUS "Created stub CUDA::nvToolsExt target for CUDA 13.x compatibility")
+# Optional CUDA support - only enable if CUDA toolkit is found
+find_package(CUDA QUIET)
+if(CUDA_FOUND)
+    enable_language(CUDA)
+    set(CMAKE_CUDA_ARCHITECTURES "75" CACHE STRING "CUDA architectures" FORCE)
+    message(STATUS "CUDA found: ${CUDA_TOOLKIT_ROOT_DIR}")
+else()
+    message(STATUS "CUDA not found - building CPU-only")
 endif()
 
 add_subdirectory(thirdparty/GigaLearnCPP-Leak/GigaLearnCPP)
